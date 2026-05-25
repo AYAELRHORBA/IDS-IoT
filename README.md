@@ -1,15 +1,5 @@
-# IDS-IoT SWaT — Membre 1 : Aya EL RHORBA
-## Simulateur de trafic & Infrastructure MQTT
 
----
 
-## Rôle dans le projet
-
-Le Membre 1 fournit **l'infrastructure de données** sur laquelle tout le système repose.
-Sans ce travail, Node-RED (M3) n'a pas de trafic à analyser et le modèle IA (M2)
-n'a pas de données à classifier.
-
----
 
 ## Livrables produits
 
