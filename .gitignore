@@ -6,11 +6,8 @@ __pycache__/
 *.pkl
 
 # Données lourdes — le CSV brut est trop grand pour GitHub
-data/attack.csv
-data/normal.csv
-data/merged.csv
+dataset_real.csv
 
-data/SWaT_labeled.csv
 # Divers
 .env
 *.log
