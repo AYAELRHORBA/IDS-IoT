@@ -1,57 +1,156 @@
+# IDS-IoT SWaT — M2 : Data Scientist & API IA
 
+## Rôle de M2
 
-
-## Livrables produits
-
-| Fichier | Rôle | Destinataire |
-|---------|------|-------------|
-| `scripts/traffic_simulator.py` | Trafic normal en continu | M3 — tourne pendant la démo |
-| `scripts/attack_injector.py` | Injection des 5 attaques | M3 — teste les alertes |
-| `scripts/generate_dataset.py` | Génère dataset_test.csv | Script interne |
-| `scripts/label_swat.py` | Labellise le dataset SWaT | Script interne |
-| `data/dataset_test.csv` | 600 lignes labellisées | **M2** — valide son modèle |
-| `config/mosquitto.conf` | Configuration broker MQTT | M3 — référence |
-
-> **Note** : `data/SWaT_labeled.csv` est généré par `label_swat.py`.
-> Il n'est pas sur GitHub (trop lourd). Le régénérer avec :
-> `python scripts/label_swat.py`
+M2 est responsable de l'entraînement du modèle de détection d'intrusions et de l'exposition de ce modèle via une API Flask que Node-RED (M3) appelle en temps réel.
 
 ---
 
-## Prérequis
+## Source des données
 
-```bash
-# Python 3.11+
-pip install paho-mqtt pandas scikit-learn joblib numpy matplotlib
+Les données utilisées pour l'entraînement proviennent du **trafic réseau simulé via MQTT** par M1 (`traffic_simulator.py` et `attack_injector.py`). Ces messages publiés sur les topics `iiot/node_X/data` ont été collectés et structurés en un dataset CSV.
 
-# Mosquitto 2.x
-# Windows : mosquitto.org/download
-# Démarrer : net start mosquitto
+Le dataset SWaT original (Kaggle) a servi uniquement de **référence et d'inspiration** pour définir les features et les profils d'attaque — il n'est pas utilisé directement pour l'entraînement.
+
+---
+
+## Dataset d'entraînement
+
+| Propriété | Valeur |
+|-----------|--------|
+| Fichier | `data/dataset_real.csv` |
+| Nombre de samples | 905 |
+| Nombre de classes | 6 |
+| Source | Trafic MQTT simulé par M1 |
+
+### Distribution des classes
+
+| Classe | Samples | % |
+|--------|---------|---|
+| Normal | 427 | 47.2% |
+| Probe | 150 | 16.6% |
+| Injection_Aberrant | 91 | 10.1% |
+| Physical | 90 | 9.9% |
+| DoS | 85 | 9.4% |
+| Injection_Frozen | 62 | 6.9% |
+
+---
+
+## Modèle choisi
+
+**Random Forest Classifier** (scikit-learn)
+
+Deux modèles ont été comparés : Random Forest et SVM (kernel RBF). Le Random Forest a été retenu comme modèle final.
+
+### Techniques de prétraitement
+
+- **Feature engineering** : `node_id` converti en entier (`node_num`), `ip` réduit au dernier octet (`ip_last_octet`)
+- **Split stratifié** : Train 70% / Validation 15% / Test 15% — stratification garantit la représentation de chaque classe dans les 3 splits
+- **Normalisation** : `StandardScaler` fitté uniquement sur le train, appliqué sur val et test
+- **SMOTE** : rééquilibrage des classes appliqué sur le train uniquement (avant SMOTE : 633 samples → après : 1794 samples)
+- **Cross-validation** : 5-fold stratifié sur train+val
+
+### Features utilisées (7)
+
 ```
+freq_msg_per_sec, interval_ms, payload_size_bytes,
+payload_entropy, nb_connexions, node_num, ip_last_octet
+```
+
+---
+
+## Fichiers produits
+
+| Fichier | Rôle | Destinataire |
+|---------|------|-------------|
+| `train_model.py` | Entraînement, comparaison RF vs SVM, sauvegarde | M4 — rapport |
+| `models/ids_model.pkl` | Modèle Random Forest entraîné | `api_model.py` |
+| `models/scaler.pkl` | StandardScaler (fit sur train) | `api_model.py` |
+| `models/label_encoder.pkl` | Encodeur des 6 classes | `api_model.py` |
+| `models/evaluation_dashboard.png` | Figures de comparaison RF vs SVM | M4 — rapport |
+| `models/class_report.png` | Précision/Rappel/F1 par classe | M4 — rapport |
+| `api/api_model.py` | API Flask port 5001 | M3 — Node-RED |
 
 ---
 
 ## Structure des dossiers
 
 ```
-ids-iot/
-├── config/
-│   └── mosquitto.conf
+IDS-IoT/
 ├── data/
-│   └── dataset_test.csv        ← livré à M2
-├── scripts/
-│   ├── traffic_simulator.py    ← trafic normal
-│   ├── attack_injector.py      ← attaques
-│   ├── generate_dataset.py     ← génère dataset_test.csv
-│   └── label_swat.py           ← labellise SWaT
-└── models/                     ← réservé à M2
+│   └── dataset_real.csv        ← données MQTT simulées par M1
+├── models/
+│   ├── ids_model.pkl
+│   ├── scaler.pkl
+│   ├── label_encoder.pkl
+│   ├── evaluation_dashboard.png
+│   └── class_report.png
+├── api/
+│   └── api_model.py            ← API Flask :5001
+└── train_model.py
 ```
 
 ---
 
-## Contrat 1 — Format JSON publié sur MQTT
+## Lancement
 
-Chaque message publié sur `iiot/node_X/data` respecte ce format :
+### 1. Entraîner le modèle
+
+```bash
+cd IDS-IoT
+python train_model.py
+```
+
+Les fichiers pkl sont sauvegardés automatiquement dans `models/`.
+
+### 2. Lancer l'API
+
+```bash
+cd IDS-IoT/api
+python api_model.py
+```
+
+L'API tourne sur `http://0.0.0.0:5001` (accessible en local et sur le réseau).
+
+---
+
+## Endpoints de l'API
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `POST` | `/predict` | Reçoit les features d'un nœud, retourne label + confiance |
+| `GET` | `/health` | Statut du service et modèle chargé |
+| `GET` | `/classes` | Liste des classes et actions associées |
+
+---
+
+## Contrat 2 — Format de réponse de `/predict`
+
+L'API reçoit le **Contrat 1** (JSON de M3/Node-RED) et retourne le **Contrat 2** :
+
+```json
+{
+  "label":      "DoS",
+  "confidence": 0.94,
+  "node_id":    "node_1",
+  "ip":         "192.168.1.10"
+}
+```
+
+> ⚠️ Pas de `timestamp` dans la réponse — il est généré par M3 dans le Nœud Fonction 2.
+
+---
+
+## Tester l'API avec Postman
+
+> Utiliser **Postman Desktop** (pas la version web — elle ne peut pas accéder à localhost).
+
+### Test `/predict`
+
+1. Méthode : **POST**
+2. URL : `http://127.0.0.1:5001/predict`
+3. Onglet **Body** → **raw** → **JSON**
+4. Corps :
 
 ```json
 {
@@ -61,120 +160,61 @@ Chaque message publié sur `iiot/node_X/data` respecte ce format :
   "interval_ms":        998,
   "payload_size_bytes": 64,
   "payload_entropy":    0.52,
-  "nb_connexions":      1,
-  "ts":                 1717000001,
-  "label":              "Normal",
-  "attack_type":        "Normal"
+  "nb_connexions":      1
 }
 ```
 
+5. Cliquer **Send** → réponse `200 OK` :
+
+```json
+{
+  "label":      "Normal",
+  "confidence": 0.995,
+  "node_id":    "node_1",
+  "ip":         "192.168.1.10"
+}
+```
+
+### Test `/health`
+
+Méthode **GET** → `http://127.0.0.1:5001/health`
+
+```json
+{
+  "status":  "ok",
+  "model":   "RandomForestClassifier",
+  "classes": ["DoS","Injection_Aberrant","Injection_Frozen","Normal","Physical","Probe"]
+}
+```
+
+### Test depuis PowerShell (sans Postman)
+
+```powershell
+Invoke-WebRequest -Uri "http://127.0.0.1:5001/predict" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"node_id":"node_1","ip":"192.168.1.10","freq_msg_per_sec":1.02,"interval_ms":998,"payload_size_bytes":64,"payload_entropy":0.52,"nb_connexions":1}'
+```
+
+---
+
+## Prérequis
+
+```bash
+pip install flask flask-cors scikit-learn imbalanced-learn pandas numpy matplotlib seaborn
+```
+
+Python 3.10+ recommandé.
+
+---
+
+## Intégration avec M3 (Node-RED)
+
+M3 envoie un `POST` à `http://<IP_M2>:5001/predict` avec les features du message MQTT reçu.
+L'IP réseau de la machine M2 est visible au démarrage de l'API dans les logs :
+
+```
+* Running on http://192.168.1.105:5001
+```
+
 **Ce contrat ne change pas sans accord de tout le groupe.**
-
----
-
-## Les 5 nœuds simulés
-
-| Nœud | IP | Type | Profil | Fréquence | Taille |
-|------|----|------|--------|-----------|--------|
-| node_1 | 192.168.1.10 | PLC Réacteur | CBR stable | 1 msg/sec | 64B |
-| node_2 | 192.168.1.11 | PLC Pompe | CBR stable | 1 msg/sec | 64B |
-| node_3 | 192.168.1.12 | Capteur Pression | VBR irrégulier | 0.1–0.5 msg/sec | ~80B |
-| node_4 | 192.168.1.13 | Capteur Température | VBR irrégulier | 0.1–0.5 msg/sec | ~80B |
-| node_5 | 192.168.1.14 | Gateway SCADA | Bulk lourd | 1 msg/10sec | 2048B |
-
----
-
-## Topics MQTT
-
-| Topic | Rôle |
-|-------|------|
-| `iiot/node_1/data` | Données PLC Réacteur |
-| `iiot/node_2/data` | Données PLC Pompe |
-| `iiot/node_3/data` | Données Capteur Pression |
-| `iiot/node_4/data` | Données Capteur Température |
-| `iiot/node_5/data` | Données Gateway SCADA |
-| `iiot/ids/alertes` | Alertes IDS publiées par M3 |
-
----
-
-## Utilisation — traffic_simulator.py
-
-Lance le trafic normal en continu (à garder ouvert pendant toute la démo) :
-
-```bash
-# Infini
-python scripts/traffic_simulator.py
-
-# Durée limitée
-python scripts/traffic_simulator.py --duration 60
-```
-
----
-
-## Utilisation — attack_injector.py
-
-Lance une attaque en parallèle du simulateur normal :
-
-```bash
-python scripts/attack_injector.py --mode dos
-python scripts/attack_injector.py --mode injection_frozen
-python scripts/attack_injector.py --mode injection_aberrant
-python scripts/attack_injector.py --mode probe
-python scripts/attack_injector.py --mode physical
-
-# Avec durée limitée
-python scripts/attack_injector.py --mode dos --duration 30
-```
-
-### Signatures des 5 attaques
-
-| Mode | Nœuds ciblés | Signature principale |
-|------|-------------|---------------------|
-| `dos` | node_1, node_2 | freq 400–800 msg/s, nb_connexions 50–200 |
-| `injection_frozen` | node_3 | payload_entropy = 0.0 exactement |
-| `injection_aberrant` | node_3, node_4 | payload_size 1200–1500B, entropy 0.80–0.99 |
-| `probe` | tous | ip = 192.168.1.99, nb_connexions = 5 |
-| `physical` | node_3, node_4 | freq ≈ 0, nb_connexions = 0 |
-
----
-
-## Utilisation — generate_dataset.py
-
-Génère le fichier `data/dataset_test.csv` pour M2 :
-
-```bash
-python scripts/generate_dataset.py
-```
-
-Produit 600 lignes : 200 normales + 80 par type d'attaque.
-
----
-
-## Test end-to-end
-
-```bash
-# Terminal 1 — écouter tout le trafic
-cd "C:\Program Files\mosquitto"
-mosquitto_sub -h localhost -t "iiot/#" -v
-
-# Terminal 2 — trafic normal
-python scripts/traffic_simulator.py
-
-# Terminal 3 — injecter une attaque DoS pendant 30 sec
-python scripts/attack_injector.py --mode dos --duration 30
-```
-
----
-
-## Validation réalisée
-
-| Test | Résultat |
-|------|---------|
-| Mosquitto installé et actif sur port 1883 | ✅ |
-| traffic_simulator.py publie sur iiot/node_X/data | ✅ |
-| Contrat 1 respecté (ip, ts, label, attack_type...) | ✅ |
-| Profils CBR/VBR/Bulk corrects | ✅ |
-| attack_injector.py — 5 modes fonctionnels | ✅ |
-| Topic iiot/ids/alertes opérationnel | ✅ |
-| dataset_test.csv généré et livré à M2 | ✅ |
-
