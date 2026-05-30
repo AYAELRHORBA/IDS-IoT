@@ -1,0 +1,792 @@
+[
+    {
+        "id": "27e938e05ed60cef",
+        "type": "tab",
+        "label": "Flux 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "dfea1f01dc62f13a",
+        "type": "mqtt in",
+        "z": "27e938e05ed60cef",
+        "name": "Écouter tous les nœuds",
+        "topic": "iiot/+/data",
+        "qos": "1",
+        "broker": "mqtt_broker",
+        "inputs": 0,
+        "x": 120,
+        "y": 480,
+        "wires": [
+            [
+                "9a6db1425f7fd384"
+            ]
+        ]
+    },
+    {
+        "id": "9a6db1425f7fd384",
+        "type": "json",
+        "z": "27e938e05ed60cef",
+        "name": "JSON Parse",
+        "x": 330,
+        "y": 480,
+        "wires": [
+            [
+                "8963ce123b0f12d6"
+            ]
+        ]
+    },
+    {
+        "id": "8963ce123b0f12d6",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "Préparer body",
+        "func": "if (typeof msg.payload === \"string\") {\n    msg.payload = JSON.parse(msg.payload);\n}\n\nconst d = msg.payload;\n\nconst ip_map = {\n    \"node_1\": \"192.168.1.10\",\n    \"node_2\": \"192.168.1.11\",\n    \"node_3\": \"192.168.1.12\",\n    \"node_4\": \"192.168.1.13\",\n    \"node_5\": \"192.168.1.14\"\n};\n\nmsg.payload = {\n    node_id:            d.node_id,\n    ip:                 d.ip || ip_map[d.node_id] || \"192.168.1.99\",\n    freq_msg_per_sec:   d.freq_msg_per_sec,\n    interval_ms:        d.interval_ms,\n    payload_size_bytes: d.payload_size_bytes,\n    payload_entropy:    d.payload_entropy,\n    nb_connexions:      d.nb_connexions\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 480,
+        "wires": [
+            [
+                "b095e0a4e33aec0d"
+            ]
+        ]
+    },
+    {
+        "id": "742edba46232ae2d",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "Logique décision",
+        "func": "const ai = msg.payload;\n\nlet action, severity, attack_code;\n\nif (ai.label === 'Normal') {\n    action = 'ALLOW'; severity = 'OK'; attack_code = 0;\n}\nelse if (ai.label === 'DoS') {\n    action = 'REJECT'; severity = 'CRITICAL'; attack_code = 1;\n}\nelse if (ai.label === 'Injection_Frozen' || ai.label === 'Injection_Aberrant') {\n    action = 'QUARANTINE'; severity = 'DANGER'; attack_code = 2;\n}\nelse if (ai.label === 'Probe') {\n    action = 'WATCHLIST'; severity = 'WARNING'; attack_code = 3;\n}\nelse if (ai.label === 'Physical') {\n    action = 'REJECT'; severity = 'CRITICAL'; attack_code = 5;\n}\nelse {\n    action = 'WATCHLIST'; severity = 'WARNING'; attack_code = 3;\n}\n\nconst node_num = parseInt(ai.node_id.replace('node_', '')) || 0;\n\nmsg.action      = action;\nmsg.severity    = severity;\nmsg.attack_code = attack_code;\nmsg.node_num    = node_num;\n\nmsg.alert = {\n    label:      ai.label,\n    action:     action,\n    node_id:    ai.node_id,\n    ip:         ai.ip,\n    confidence: ai.confidence,\n    severity:   severity,\n    timestamp:  new Date().toISOString()\n};\n\nmsg.thingspeak = {\n    field1: node_num,\n    field2: attack_code,\n    field3: Math.round(ai.confidence * 100)\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 950,
+        "y": 480,
+        "wires": [
+            [
+                "c02169d8457e821b"
+            ]
+        ]
+    },
+    {
+        "id": "c02169d8457e821b",
+        "type": "switch",
+        "z": "27e938e05ed60cef",
+        "name": "Switch Action",
+        "property": "action",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "ALLOW",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "REJECT",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "QUARANTINE",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "WATCHLIST",
+                "vt": "str"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 4,
+        "x": 1150,
+        "y": 480,
+        "wires": [
+            [
+                "eed6c936ead96a1d"
+            ],
+            [
+                "89201c042fa5a725"
+            ],
+            [
+                "b20917289ea8b7be"
+            ],
+            [
+                "4b58de0ca1ca2337"
+            ]
+        ]
+    },
+    {
+        "id": "eed6c936ead96a1d",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "✅ ALLOW — Normal",
+        "func": "msg.payload = msg.alert;\nmsg.topic   = 'normal';\nnode.status({fill:'green', shape:'dot', text:'Normal ✅'});\nreturn msg;",
+        "outputs": 1,
+        "x": 1400,
+        "y": 360,
+        "wires": [
+            [
+                "c704fd5015f018eb"
+            ]
+        ]
+    },
+    {
+        "id": "89201c042fa5a725",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "🔴 REJECT — DoS / Physical",
+        "func": "msg.payload = msg.alert;\nmsg.topic   = 'attack';\nnode.status({fill:'red', shape:'ring', text:'🔴 REJECT — ' + msg.alert.label});\nnode.warn('🚨 ' + msg.alert.label + ' DÉTECTÉ sur ' + msg.alert.node_id + ' — ' + msg.alert.ip);\nreturn msg;",
+        "outputs": 1,
+        "x": 1430,
+        "y": 440,
+        "wires": [
+            [
+                "c704fd5015f018eb"
+            ]
+        ]
+    },
+    {
+        "id": "b20917289ea8b7be",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "🟠 QUARANTINE — Injection",
+        "func": "msg.payload = msg.alert;\nmsg.topic   = 'attack';\nnode.status({fill:'orange', shape:'ring', text:'🟠 QUARANTINE — ' + msg.alert.label});\nnode.warn('⚠️ INJECTION sur ' + msg.alert.node_id + ' — données rejetées');\nreturn msg;",
+        "outputs": 1,
+        "x": 1430,
+        "y": 500,
+        "wires": [
+            [
+                "c704fd5015f018eb"
+            ]
+        ]
+    },
+    {
+        "id": "4b58de0ca1ca2337",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "🟡 WATCHLIST — Probe",
+        "func": "msg.payload = msg.alert;\nmsg.topic   = 'attack';\nnode.status({fill:'yellow', shape:'dot', text:'🟡 WATCHLIST — ' + msg.alert.label});\nnode.warn('👁️ ' + msg.alert.label + ' détecté depuis ' + msg.alert.ip);\nreturn msg;",
+        "outputs": 1,
+        "x": 1410,
+        "y": 580,
+        "wires": [
+            [
+                "c704fd5015f018eb"
+            ]
+        ]
+    },
+    {
+        "id": "c704fd5015f018eb",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "Préparer sorties finales",
+        "func": "const alert = msg.payload;\n\n// Recalculer directement ici — ne dépend plus des branches\nconst node_num = parseInt(\n    (alert.node_id || \"node_0\").replace(\"node_\", \"\")\n) || 0;\n\nconst attack_map = {\n    \"Normal\":             0,\n    \"DoS\":                1,\n    \"Injection_Frozen\":   2,\n    \"Injection_Aberrant\": 2,\n    \"Probe\":              3,\n    \"Physical\":           5\n};\n\nconst attack_code    = attack_map[alert.label] !== undefined\n                       ? attack_map[alert.label] : 3;\nconst confidence_pct = Math.round((alert.confidence || 0) * 100);\n\n// ── Sortie 1 → Flask + MQTT + Dashboard ──────────────────\nconst msg_out = {\n    payload: alert,\n    headers: {\"Content-Type\": \"application/json\"}\n};\n\n// ── Sortie 2 → ThingSpeak — UNIQUEMENT si attaque ────────\nlet msg_ts = null;\nif (alert.label !== \"Normal\") {\n    msg_ts = {\n        payload: {\n            field1: node_num,\n            field2: attack_code,\n            field3: confidence_pct\n        }\n    };\n}\n\nreturn [msg_out, msg_ts];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1790,
+        "y": 480,
+        "wires": [
+            [
+                "eb21db7b63e87cb3",
+                "fbb478c4572fbb72",
+                "39878db8ab6081f8",
+                "ee28490625b0f007"
+            ],
+            [
+                "3a10ace99f6f63bc"
+            ]
+        ]
+    },
+    {
+        "id": "eb21db7b63e87cb3",
+        "type": "mqtt out",
+        "z": "27e938e05ed60cef",
+        "name": "Publier alertes",
+        "topic": "iiot/ids/alertes",
+        "qos": "1",
+        "broker": "mqtt_broker",
+        "x": 2060,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "fbb478c4572fbb72",
+        "type": "http request",
+        "z": "27e938e05ed60cef",
+        "name": "POST Flask Marwa :5000",
+        "method": "POST",
+        "ret": "txt",
+        "url": "http://localhost:5000/api/alert",
+        "x": 2090,
+        "y": 400,
+        "wires": [
+            [
+                "770608f37aee288b"
+            ]
+        ]
+    },
+    {
+        "id": "770608f37aee288b",
+        "type": "debug",
+        "z": "27e938e05ed60cef",
+        "name": "Debug Flask",
+        "active": false,
+        "tosidebar": true,
+        "x": 2310,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "4a67235cb2c63392",
+        "type": "http request",
+        "z": "27e938e05ed60cef",
+        "name": "POST ThingSpeak",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://api.thingspeak.com/update?api_key=5ZUMNMBZANUQ0U7L&field1={{payload.field1}}&field2={{payload.field2}}&field3={{payload.field3}}",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 2190,
+        "y": 820,
+        "wires": [
+            [
+                "afed19d84d5e224c"
+            ]
+        ]
+    },
+    {
+        "id": "afed19d84d5e224c",
+        "type": "debug",
+        "z": "27e938e05ed60cef",
+        "name": "Debug ThingSpeak",
+        "active": true,
+        "tosidebar": true,
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2410,
+        "y": 820,
+        "wires": []
+    },
+    {
+        "id": "39878db8ab6081f8",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "Router LEDs",
+        "func": "const alert = msg.payload;\nconst node_id = alert.node_id;\n\nlet led_val;\nif (alert.severity === 'OK')                         led_val = true;\nelse if (alert.severity === 'CRITICAL')              led_val = false;\nelse                                                 led_val = 'orange';\n\nmsg.payload = led_val;\nmsg.topic   = node_id;\n\nreturn msg;",
+        "outputs": 1,
+        "x": 2070,
+        "y": 520,
+        "wires": [
+            [
+                "8e7b3dfddce4cf75"
+            ]
+        ]
+    },
+    {
+        "id": "8e7b3dfddce4cf75",
+        "type": "switch",
+        "z": "27e938e05ed60cef",
+        "name": "Switch LED par nœud",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "node_1",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "node_2",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "node_3",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "node_4",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "node_5",
+                "vt": "str"
+            }
+        ],
+        "checkall": "false",
+        "outputs": 5,
+        "x": 2320,
+        "y": 520,
+        "wires": [
+            [
+                "87eaf8c320bf0a72"
+            ],
+            [
+                "9375a91e8f31d859"
+            ],
+            [
+                "3345e8b89892aec6"
+            ],
+            [
+                "2e47cf0b3580481d"
+            ],
+            [
+                "5e22e3e0bfd69016"
+            ]
+        ]
+    },
+    {
+        "id": "87eaf8c320bf0a72",
+        "type": "ui_led",
+        "z": "27e938e05ed60cef",
+        "order": 1,
+        "group": "c0cc8e63f893966b",
+        "width": "6",
+        "height": "2",
+        "label": "node_1 — PLC Réacteur",
+        "colorForValue": [
+            {
+                "color": "#e74c3c",
+                "value": "false",
+                "valueType": "bool"
+            },
+            {
+                "color": "#00b500",
+                "value": "true",
+                "valueType": "bool"
+            },
+            {
+                "color": "#f39c12",
+                "value": "orange",
+                "valueType": "str"
+            }
+        ],
+        "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "node_1 — PLC Réacteur",
+        "x": 2610,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "9375a91e8f31d859",
+        "type": "ui_led",
+        "z": "27e938e05ed60cef",
+        "order": 2,
+        "group": "c0cc8e63f893966b",
+        "width": "6",
+        "height": "2",
+        "label": "node_2 — PLC Pompe",
+        "colorForValue": [
+            {
+                "color": "#e74c3c",
+                "value": "false",
+                "valueType": "bool"
+            },
+            {
+                "color": "#00b500",
+                "value": "true",
+                "valueType": "bool"
+            },
+            {
+                "color": "#f39c12",
+                "value": "orange",
+                "valueType": "str"
+            }
+        ],
+        "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "node_2 — PLC Pompe",
+        "x": 2610,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "3345e8b89892aec6",
+        "type": "ui_led",
+        "z": "27e938e05ed60cef",
+        "order": 3,
+        "group": "c0cc8e63f893966b",
+        "width": "6",
+        "height": "2",
+        "label": "node_3 — Capteur Pression",
+        "colorForValue": [
+            {
+                "color": "#e74c3c",
+                "value": "false",
+                "valueType": "bool"
+            },
+            {
+                "color": "#00b500",
+                "value": "true",
+                "valueType": "bool"
+            },
+            {
+                "color": "#f39c12",
+                "value": "orange",
+                "valueType": "str"
+            }
+        ],
+        "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "node_3 — Capteur Pression",
+        "x": 2620,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "2e47cf0b3580481d",
+        "type": "ui_led",
+        "z": "27e938e05ed60cef",
+        "order": 4,
+        "group": "c0cc8e63f893966b",
+        "width": "6",
+        "height": "2",
+        "label": "node_4 — Capteur Température",
+        "colorForValue": [
+            {
+                "color": "#e74c3c",
+                "value": "false",
+                "valueType": "bool"
+            },
+            {
+                "color": "#00b500",
+                "value": "true",
+                "valueType": "bool"
+            },
+            {
+                "color": "#f39c12",
+                "value": "orange",
+                "valueType": "str"
+            }
+        ],
+        "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "node_4 — Capteur Température",
+        "x": 2630,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "5e22e3e0bfd69016",
+        "type": "ui_led",
+        "z": "27e938e05ed60cef",
+        "order": 5,
+        "group": "c0cc8e63f893966b",
+        "width": "6",
+        "height": "2",
+        "label": "node_5 — Gateway SCADA",
+        "colorForValue": [
+            {
+                "color": "#e74c3c",
+                "value": "false",
+                "valueType": "bool"
+            },
+            {
+                "color": "#00b500",
+                "value": "true",
+                "valueType": "bool"
+            },
+            {
+                "color": "#f39c12",
+                "value": "orange",
+                "valueType": "str"
+            }
+        ],
+        "allowColorForValueInMessage": false,
+        "shape": "circle",
+        "showGlow": true,
+        "name": "node_5 — Gateway SCADA",
+        "x": 2620,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "ee28490625b0f007",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "Formater dashboard",
+        "func": "const alert = msg.payload;\n\nconst time = alert.timestamp\n    ? alert.timestamp.substring(11, 19)\n    : new Date().toISOString().substring(11, 19);\n\nmsg.alert_text  = '[' + time + '] ' + alert.label + ' — ' + alert.node_id + ' — ' + alert.action + ' (' + Math.round(alert.confidence * 100) + '%)';\nmsg.chart_value = alert.label === 'Normal' ? 0 : 1;\nmsg.gauge_value = Math.round(alert.confidence * 100);\nmsg.payload     = msg.alert_text;\n\nreturn msg;",
+        "outputs": 1,
+        "x": 2080,
+        "y": 600,
+        "wires": [
+            [
+                "1a1b76c6eb506d64",
+                "27f30d8b9eb4f378",
+                "94b94cde2f905bb4",
+                "f05e5ba6bd0320b3"
+            ]
+        ]
+    },
+    {
+        "id": "1a1b76c6eb506d64",
+        "type": "ui_text",
+        "z": "27e938e05ed60cef",
+        "group": "61879fc8f57bb777",
+        "order": 1,
+        "width": "12",
+        "height": "2",
+        "name": "Dernière alerte",
+        "label": "Dernière alerte",
+        "format": "{{msg.payload}}",
+        "layout": "",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": "",
+        "color": "#000000",
+        "x": 2320,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "27f30d8b9eb4f378",
+        "type": "ui_chart",
+        "z": "27e938e05ed60cef",
+        "name": "Normal vs Attaque",
+        "group": "7bab76c5b118ad18",
+        "order": 1,
+        "width": "9",
+        "height": "6",
+        "label": "Trafic analysé",
+        "chartType": "line",
+        "legend": "true",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "10",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "60",
+        "cutout": "",
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 2330,
+        "y": 640,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "94b94cde2f905bb4",
+        "type": "ui_gauge",
+        "z": "27e938e05ed60cef",
+        "name": "Confiance IA",
+        "group": "7bab76c5b118ad18",
+        "order": 2,
+        "width": "3",
+        "height": "6",
+        "gtype": "gage",
+        "title": "",
+        "label": "Confiance IA %",
+        "format": "{{value}}%",
+        "min": 0,
+        "max": 100,
+        "colors": [
+            "#e74c3c",
+            "#f39c12",
+            "#00b500"
+        ],
+        "seg1": "50",
+        "seg2": "80",
+        "diff": false,
+        "className": "",
+        "x": 2310,
+        "y": 680,
+        "wires": []
+    },
+    {
+        "id": "b095e0a4e33aec0d",
+        "type": "http request",
+        "z": "27e938e05ed60cef",
+        "name": "POST API:5001",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:5001/predict",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 720,
+        "y": 480,
+        "wires": [
+            [
+                "742edba46232ae2d"
+            ]
+        ]
+    },
+    {
+        "id": "3a10ace99f6f63bc",
+        "type": "delay",
+        "z": "27e938e05ed60cef",
+        "name": "Delay",
+        "pauseType": "rate",
+        "timeout": "15",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "15",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 2010,
+        "y": 820,
+        "wires": [
+            [
+                "4a67235cb2c63392"
+            ]
+        ]
+    },
+    {
+        "id": "f05e5ba6bd0320b3",
+        "type": "function",
+        "z": "27e938e05ed60cef",
+        "name": "function ",
+        "func": "// Compteur global — persiste entre les messages\ncontext.total    = (context.total    || 0) + 1;\ncontext.attacks  = (context.attacks  || 0) + (msg.label !== \"Normal\" ? 1 : 0);\n\nmsg.counter_text =\n    \"Total : \" + context.total +\n    \" | Attaques : \" + context.attacks +\n    \" | Taux : \" + Math.round(context.attacks / context.total * 100) + \"%\";\n\nmsg.payload = msg.counter_text;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2300,
+        "y": 740,
+        "wires": [
+            [
+                "ec55863d19e2da4a"
+            ]
+        ]
+    },
+    {
+        "id": "ec55863d19e2da4a",
+        "type": "ui_text",
+        "z": "27e938e05ed60cef",
+        "group": "7bab76c5b118ad18",
+        "order": 2,
+        "width": "12",
+        "height": "1",
+        "name": "",
+        "label": "Compteurs",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 2490,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "mqtt_broker",
+        "type": "mqtt-broker",
+        "name": "Mosquitto Local",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "nodered_ids",
+        "keepalive": "60",
+        "cleansession": true
+    },
+    {
+        "id": "c0cc8e63f893966b",
+        "type": "ui_group",
+        "name": "Statut des Nœuds",
+        "tab": "5fb951effafe3ad6",
+        "order": 1,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "61879fc8f57bb777",
+        "type": "ui_group",
+        "name": "Alertes en temps réel",
+        "tab": "5fb951effafe3ad6",
+        "order": 2,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "7bab76c5b118ad18",
+        "type": "ui_group",
+        "name": "Statistiques",
+        "tab": "5fb951effafe3ad6",
+        "order": 3,
+        "disp": true,
+        "width": "12",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "5fb951effafe3ad6",
+        "type": "ui_tab",
+        "name": "IDS-IoT",
+        "icon": "dashboard",
+        "order": 1
+    },
+    {
+        "id": "3ac77616fd80fac3",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-ui-led": "0.4.11",
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
