@@ -694,7 +694,7 @@
         "type": "function",
         "z": "27e938e05ed60cef",
         "name": "function ",
-        "func": "// Compteur global — persiste entre les messages\ncontext.total    = (context.total    || 0) + 1;\ncontext.attacks  = (context.attacks  || 0) + (msg.label !== \"Normal\" ? 1 : 0);\n\nmsg.counter_text =\n    \"Total : \" + context.total +\n    \" | Attaques : \" + context.attacks +\n    \" | Taux : \" + Math.round(context.attacks / context.total * 100) + \"%\";\n\nmsg.payload = msg.counter_text;\nreturn msg;",
+        "func": "const text = msg.payload || \"\";\n\n// Extraire le label depuis le texte formaté\nconst isNormal = text.includes(\"— Normal —\") || text.includes(\"] Normal —\");\n\ncontext.total   = (context.total   || 0) + 1;\ncontext.attacks = (context.attacks || 0) + (isNormal ? 0 : 1);\n\nconst taux = context.total > 0\n    ? Math.round(context.attacks / context.total * 100)\n    : 0;\n\nmsg.payload = \"Total : \" + context.total +\n              \" | Attaques : \" + context.attacks +\n              \" | Taux : \" + taux + \"%\";\n\nreturn msg;\n\n",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
@@ -781,7 +781,7 @@
         "order": 1
     },
     {
-        "id": "3ac77616fd80fac3",
+        "id": "d48438be2a83df2c",
         "type": "global-config",
         "env": [],
         "modules": {
