@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pkl
+
+# Données lourdes
+dataset_real.csv
+data/*.csv
+
+# Images générées
+models/*.png
+
+# Divers
+.env
+*.log

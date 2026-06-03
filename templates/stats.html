@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+{% block title %}Statistics — IDS-IoT SWaT{% endblock %}
+
+{% block head %}
+<style>
+/* ── STATS PAGE ─────────────────────────────────────────────── */
+
+/* KPI ROW ─────────────────────────────────────────────────── */
+.stats-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+@media(max-width:1100px){ .stats-kpi-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:600px){  .stats-kpi-grid { grid-template-columns: 1fr; } }
+
+.stats-kpi {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: border-color .18s, box-shadow .18s;
+}
+.stats-kpi:hover { border-color: var(--border2); box-shadow: var(--shadow-md); }
+.stats-kpi::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.kv-blue::before  { background: linear-gradient(90deg, var(--accent), #60a5fa); }
+.kv-ok::before    { background: linear-gradient(90deg, var(--ok), #6ee7b7); }
+.kv-warn::before  { background: linear-gradient(90deg, var(--warn), #fcd34d); }
+.kv-crit::before  { background: linear-gradient(90deg, var(--critical), #fca5a5); }
+
+.skpi-icon-wrap {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .7rem;
+}
+.skpi-icon {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+}
+.skpi-icon svg {
+  width: 17px; height: 17px;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.skpi-icon.blue  { background: var(--accent-soft); color: var(--accent); }
+.skpi-icon.ok    { background: var(--ok-bg);       color: var(--ok); }
+.skpi-icon.warn  { background: var(--warn-bg);     color: var(--warn); }
+.skpi-icon.crit  { background: var(--critical-bg); color: var(--critical); }
+
+.skpi-label {
+  font-family: var(--font-mono);
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .35rem;
+}
+.skpi-value {
+  font-family: var(--font-title);
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -.02em;
+  color: var(--text);
+}
+.skpi-value.c-blue  { color: var(--accent); }
+.skpi-value.c-ok    { color: var(--ok); }
+.skpi-value.c-warn  { color: var(--warn); }
+.skpi-value.c-crit  { color: var(--critical); }
+.skpi-sub {
+  font-size: .78rem;
+  color: var(--muted);
+  margin-top: .4rem;
+}
+
+/* TREND MINI CHIP ─────────────────────────────────────────── */
+.trend-chip {
+  display: inline-flex; align-items: center; gap: .2rem;
+  font-family: var(--font-mono);
+  font-size: .6rem;
+  font-weight: 700;
+  padding: .15rem .5rem;
+  border-radius: 100px;
+}
+.trend-chip.up   { background: var(--ok-bg);       color: var(--ok); }
+.trend-chip.down { background: var(--critical-bg); color: var(--critical); }
+
+/* CHARTS SECTION ──────────────────────────────────────────── */
+.charts-row {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+@media(max-width:1000px){ .charts-row { grid-template-columns: 1fr; } }
+
+/* TABLE CARDS ─────────────────────────────────────────────── */
+.data-table-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.75rem;
+  transition: border-color .18s;
+}
+.data-table-card:hover { border-color: var(--border2); }
+
+/* NODE TABLE SPECIALTIES ──────────────────────────────────── */
+.node-attack-bar-wrap {
+  display: flex; align-items: center; gap: .6rem;
+}
+.node-attack-bar-track {
+  flex: 1; height: 5px;
+  background: var(--bg4);
+  border-radius: 100px;
+  overflow: hidden;
+  min-width: 40px; max-width: 90px;
+}
+.node-attack-bar-fill {
+  height: 100%; border-radius: 100px;
+  background: var(--critical);
+  transition: width .4s ease;
+}
+
+/* DECISION MATRIX ─────────────────────────────────────────── */
+.label-chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  font-weight: 700;
+  padding: .22rem .7rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid;
+}
+.pct-bar {
+  display: flex; align-items: center; gap: .55rem;
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  color: var(--muted);
+}
+.pct-track {
+  flex: 1; height: 4px;
+  background: var(--bg4);
+  border-radius: 100px;
+  overflow: hidden;
+  min-width: 50px; max-width: 100px;
+}
+.pct-fill { height: 100%; border-radius: 100px; background: var(--critical); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER ─────────────────────────────────────────────── -->
+<div class="page-header fade-in">
+  <h1><span class="hd-accent">//</span> Detection Statistics</h1>
+  <p>Performance metrics, false positive estimation, and node targeting analysis</p>
+</div>
+
+<!-- KPI GRID ────────────────────────────────────────────────── -->
+<div class="stats-kpi-grid fade-in">
+
+  <div class="stats-kpi kv-crit">
+    <div class="skpi-icon-wrap">
+      <div class="skpi-icon crit">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+    </div>
+    <div class="skpi-label">Detection Rate</div>
+    <div class="skpi-value c-crit" id="s-det-rate">—</div>
+    <div class="skpi-sub">attacks caught vs total traffic</div>
+  </div>
+
+  <div class="stats-kpi kv-blue">
+    <div class="skpi-icon-wrap">
+      <div class="skpi-icon blue">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+    </div>
+    <div class="skpi-label">Most Targeted Node</div>
+    <div class="skpi-value c-blue" id="s-top-node" style="font-size:1.55rem;">—</div>
+    <div class="skpi-sub" id="s-top-node-count">— events</div>
+  </div>
+
+  <div class="stats-kpi kv-ok">
+    <div class="skpi-icon-wrap">
+      <div class="skpi-icon ok">
+        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+      </div>
+    </div>
+    <div class="skpi-label">Avg AI Confidence</div>
+    <div class="skpi-value c-ok" id="s-conf">—</div>
+    <div class="skpi-sub">across all predictions</div>
+  </div>
+
+  <div class="stats-kpi kv-warn">
+    <div class="skpi-icon-wrap">
+      <div class="skpi-icon warn">
+        <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+    </div>
+    <div class="skpi-label">Est. False Positives</div>
+    <div class="skpi-value c-warn" id="s-fp">—</div>
+    <div class="skpi-sub">confidence &lt; 80%</div>
+  </div>
+
+</div>
+
+<!-- CHARTS ──────────────────────────────────────────────────── -->
+<div class="charts-row fade-in">
+  <div class="card">
+    <div class="section-title">// Node Traffic Volume</div>
+    <div class="chart-wrap"><canvas id="nodeChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="section-title">// ALLOW / REJECT / QUARANTINE / WATCHLIST</div>
+    <div class="chart-wrap"><canvas id="actionPie"></canvas></div>
+  </div>
+</div>
+
+<!-- PER-NODE BREAKDOWN ──────────────────────────────────────── -->
+<div class="data-table-card fade-in">
+  <div style="padding:.9rem 1.25rem;border-bottom:1px solid var(--border);background:var(--bg3);">
+    <div class="section-title" style="border:none;padding:0;margin:0;">// Per-Node Breakdown</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="ids-table">
+      <thead>
+        <tr>
+          <th>Node</th>
+          <th>Role</th>
+          <th>IP</th>
+          <th>Total Events</th>
+          <th>Normal</th>
+          <th>Attacks</th>
+          <th>Attack %</th>
+          <th>Last Label</th>
+          <th>Last Seen</th>
+        </tr>
+      </thead>
+      <tbody id="node-breakdown">
+        <tr>
+          <td colspan="9" style="color:var(--muted);text-align:center;padding:2rem;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;">
+              <div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;"></div>
+              Loading…
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DECISION MATRIX ─────────────────────────────────────────── -->
+<div class="data-table-card fade-in">
+  <div style="padding:.9rem 1.25rem;border-bottom:1px solid var(--border);background:var(--bg3);">
+    <div class="section-title" style="border:none;padding:0;margin:0;">// Label → Action Mapping (Decision Logic)</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="ids-table">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Action</th>
+          <th>Severity</th>
+          <th>Count</th>
+          <th>% of Attacks</th>
+        </tr>
+      </thead>
+      <tbody id="decision-table">
+        <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:1.5rem;">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var NODE_ROLES = {node_1:'PLC Reactor',node_2:'PLC Pump',node_3:'Pressure Sensor',node_4:'Temp Sensor',node_5:'SCADA GW'};
+var NODE_IPS   = {node_1:'192.168.1.10',node_2:'192.168.1.11',node_3:'192.168.1.12',node_4:'192.168.1.13',node_5:'192.168.1.14'};
+var DECISION   = {
+  Normal:             {action:'ALLOW',    severity:'OK'},
+  DoS:                {action:'REJECT',   severity:'CRITICAL'},
+  Injection_Frozen:   {action:'QUARANTINE',severity:'DANGER'},
+  Injection_Aberrant: {action:'QUARANTINE',severity:'DANGER'},
+  Probe:              {action:'WATCHLIST', severity:'WARNING'},
+  Physical:           {action:'REJECT',   severity:'CRITICAL'},
+};
+
+async function loadStats(){
+  try {
+    var results = await Promise.all([
+      fetch('/api/stats/overview').then(r=>r.json()),
+      fetch('/api/stats/by_type').then(r=>r.json()),
+      fetch('/api/stats/actions').then(r=>r.json()),
+      fetch('/api/stats/node_status').then(r=>r.json()),
+    ]);
+    var overview = results[0], types = results[1], actions = results[2], nodeStatus = results[3];
+
+    /* KPIs */
+    document.getElementById('s-det-rate').textContent = (overview.attack_rate||0) + '%';
+
+    if(overview.node_counts && overview.node_counts.length){
+      var top = overview.node_counts[0];
+      document.getElementById('s-top-node').textContent = top.node_id;
+      document.getElementById('s-top-node-count').textContent = top.c + ' events';
+    }
+
+    var confPct = ((overview.avg_confidence||0)*100).toFixed(1);
+    document.getElementById('s-conf').textContent = confPct + '%';
+    var fpRate = ((1 - (overview.avg_confidence||0))*100).toFixed(1);
+    document.getElementById('s-fp').textContent = fpRate + '%';
+
+    /* Node volume chart */
+    var nodes = overview.node_counts || [];
+    new Chart(document.getElementById('nodeChart'),{
+      type:'bar',
+      data:{
+        labels: nodes.map(function(n){ return n.node_id; }),
+        datasets:[{
+          label:'Events', data:nodes.map(function(n){ return n.c; }),
+          backgroundColor: getCSSVar('--accent')+'88',
+          borderColor: getCSSVar('--accent'),
+          borderWidth:1, borderRadius:5,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        scales:{
+          x:{grid:{color:gridColor()}},
+          y:{grid:{color:gridColor()}, beginAtZero:true}
+        },
+        plugins:{legend:{display:false}}
+      }
+    });
+
+    /* Action donut */
+    var AC = {
+      ALLOW:      getCSSVar('--ok'),
+      REJECT:     getCSSVar('--critical'),
+      QUARANTINE: getCSSVar('--danger'),
+      WATCHLIST:  getCSSVar('--warn'),
+    };
+    new Chart(document.getElementById('actionPie'),{
+      type:'doughnut',
+      data:{
+        labels: actions.map(function(r){ return r.action; }),
+        datasets:[{
+          data: actions.map(function(r){ return r.c; }),
+          backgroundColor: actions.map(function(r){ return (AC[r.action]||getCSSVar('--accent'))+'cc'; }),
+          borderWidth:0, hoverOffset:8,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:'60%',
+        plugins:{legend:{position:'right', labels:{font:{size:10}, padding:14, usePointStyle:true, boxWidth:10}}}
+      }
+    });
+
+    /* Per-node breakdown */
+    var allNodes = ['node_1','node_2','node_3','node_4','node_5'];
+    var statusMap = {};
+    nodeStatus.forEach(function(n){ statusMap[n.node_id] = n; });
+    var countMap = {};
+    (overview.node_counts||[]).forEach(function(n){ countMap[n.node_id] = n.c; });
+
+    var nodeData = await Promise.all(allNodes.map(async function(nid){
+      try {
+        var atk = await fetch('/api/stats/node_attack_count?node_id='+nid).then(r=>r.json());
+        return {nid:nid, total:countMap[nid]||0, attacks:atk.attacks||0, normal:atk.normal||0, s:statusMap[nid]};
+      } catch(e) {
+        return {nid:nid, total:countMap[nid]||0, attacks:0, normal:0, s:statusMap[nid]};
+      }
+    }));
+
+    var maxAtks = Math.max.apply(null, nodeData.map(function(d){ return d.attacks; })) || 1;
+
+    document.getElementById('node-breakdown').innerHTML = nodeData.map(function(d){
+      var atkPct = d.total>0?((d.attacks/d.total)*100).toFixed(1):'0.0';
+      var barW   = Math.round((d.attacks/maxAtks)*100);
+      var s      = d.s;
+      return '<tr>'
+        + '<td class="c-accent fw7">' + d.nid + '</td>'
+        + '<td class="c-muted" style="font-size:.78rem">' + (NODE_ROLES[d.nid]||'—') + '</td>'
+        + '<td class="mono" style="font-size:.76rem">' + (NODE_IPS[d.nid]||'—') + '</td>'
+        + '<td class="mono">' + d.total + '</td>'
+        + '<td class="mono c-ok">' + d.normal + '</td>'
+        + '<td>'
+        +   '<div class="node-attack-bar-wrap">'
+        +     '<span class="mono c-crit">' + d.attacks + '</span>'
+        +     '<div class="node-attack-bar-track"><div class="node-attack-bar-fill" style="width:'+barW+'%"></div></div>'
+        +   '</div>'
+        + '</td>'
+        + '<td class="mono">' + atkPct + '%</td>'
+        + '<td style="color:'+(s?labelColor(s.label):'var(--muted)')+';font-weight:'+(s?700:400)+'">'+(s?s.label:'—')+'</td>'
+        + '<td class="c-muted" style="font-size:.76rem">' + (s?timeAgo(s.timestamp):'—') + '</td>'
+        + '</tr>';
+    }).join('');
+
+    /* Decision table */
+    var totalAttacks = overview.attacks || 1;
+    document.getElementById('decision-table').innerHTML = types.map(function(t){
+      var d   = DECISION[t.label] || {action:'WATCHLIST',severity:'WARNING'};
+      var pct = t.label!=='Normal' ? ((t.c/totalAttacks)*100).toFixed(1) : '—';
+      var barW = t.label!=='Normal' && pct!=='—' ? Math.min(100,parseFloat(pct)) : 0;
+      return '<tr>'
+        + '<td style="color:'+labelColor(t.label)+';font-weight:700">' + t.label + '</td>'
+        + '<td>' + actionBadge(d.action) + '</td>'
+        + '<td>' + severityBadge(d.severity) + '</td>'
+        + '<td class="mono">' + t.c + '</td>'
+        + '<td>'
+        +   '<div class="pct-bar">'
+        +     '<span>' + pct + (pct!=='—'?'%':'') + '</span>'
+        +     '<div class="pct-track"><div class="pct-fill" style="width:'+barW+'%"></div></div>'
+        +   '</div>'
+        + '</td>'
+        + '</tr>';
+    }).join('');
+
+  } catch(e){ console.error(e); }
+}
+
+loadStats();
+setInterval(loadStats, 15000);
+</script>
+{% endblock %}

@@ -1,0 +1,889 @@
+{% extends "base.html" %}
+{% block title %}History — IDS-IoT SWaT{% endblock %}
+
+{% block head %}
+<style>
+/* ── HISTORY PAGE ───────────────────────────────────────────── */
+
+/* SECTION DIVIDER ─────────────────────────────────────────── */
+.section-divider {
+  display: flex; align-items: center; gap: 1rem;
+  margin: 2.25rem 0 1.75rem;
+}
+.sd-line { flex: 1; height: 1px; background: var(--border); }
+.sd-label {
+  display: flex; align-items: center; gap: .5rem;
+  font-family: var(--font-mono);
+  font-size: .63rem;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: .25rem .85rem;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+}
+.sd-label svg {
+  width: 12px; height: 12px;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* CLOUD MODULE ─────────────────────────────────────────────── */
+.ts-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: .85rem;
+  margin-bottom: 1.5rem;
+}
+.ts-title {
+  display: flex; align-items: center; gap: .7rem;
+}
+.ts-title-icon {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-mid);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.ts-title-icon svg {
+  width: 16px; height: 16px;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.ts-title-name {
+  font-family: var(--font-title);
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.ts-title-sub {
+  font-family: var(--font-mono);
+  font-size: .6rem;
+  color: var(--muted);
+  letter-spacing: .12em;
+  margin-top: 1px;
+}
+.ts-live-pill {
+  display: inline-flex; align-items: center; gap: .38rem;
+  font-family: var(--font-mono);
+  font-size: .64rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-mid);
+  padding: .22rem .85rem;
+  border-radius: 100px;
+}
+.ts-live-pill .dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: statusPulse 2s ease infinite;
+}
+
+/* METRICS ROW ─────────────────────────────────────────────── */
+.ts-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: .85rem;
+  margin-bottom: 1.5rem;
+}
+@media(max-width:1100px){ .ts-metrics { grid-template-columns: repeat(3,1fr); } }
+@media(max-width:680px){  .ts-metrics { grid-template-columns: repeat(2,1fr); } }
+
+.ts-metric {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .9rem 1.05rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .18s, box-shadow .18s;
+}
+.ts-metric::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--border);
+  transition: background .3s;
+}
+.ts-metric.s-blue::before   { background: var(--accent); }
+.ts-metric.s-ok::before     { background: var(--ok); }
+.ts-metric.s-warn::before   { background: var(--warn); }
+.ts-metric.s-crit::before   { background: var(--critical); }
+
+.ts-metric-icon {
+  color: var(--muted2);
+  margin-bottom: .3rem;
+}
+.ts-metric-icon svg {
+  width: 14px; height: 14px;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.ts-metric-label {
+  font-family: var(--font-mono);
+  font-size: .59rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .25rem;
+}
+.ts-metric-value {
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ts-metric-value.c-blue  { color: var(--accent); }
+.ts-metric-value.c-ok    { color: var(--ok); }
+.ts-metric-value.c-warn  { color: var(--warn); }
+.ts-metric-value.c-crit  { color: var(--critical); }
+.ts-metric-sub {
+  font-family: var(--font-mono);
+  font-size: .6rem;
+  color: var(--muted2);
+  margin-top: .15rem;
+}
+
+/* CHART GRID ──────────────────────────────────────────────── */
+.ts-charts-top {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.ts-charts-bot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media(max-width:1000px){
+  .ts-charts-top,
+  .ts-charts-bot { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.25rem 1.1rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color .18s, box-shadow .18s;
+}
+.chart-card:hover { border-color: var(--border2); box-shadow: var(--shadow-md); }
+
+.chart-card-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 1rem; gap: .5rem;
+}
+.chart-card-title {
+  font-family: var(--font-mono);
+  font-size: .66rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex; align-items: center; gap: .45rem;
+}
+.chart-card-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 11px;
+  background: var(--accent);
+  border-radius: 2px; flex-shrink: 0;
+}
+.chart-card-subtitle {
+  font-family: var(--font-mono);
+  font-size: .59rem;
+  color: var(--muted2);
+  letter-spacing: .06em;
+  margin-top: 2px;
+}
+
+/* Refresh btn */
+.refresh-btn {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.refresh-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.refresh-btn svg {
+  width: 12px; height: 12px;
+  fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.refresh-btn.spinning svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.chart-wrap-200 { position: relative; height: 200px; }
+.chart-wrap-240 { position: relative; height: 240px; }
+
+/* No-data overlay */
+.no-data-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .55rem;
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+}
+.no-data-overlay svg {
+  width: 26px; height: 26px;
+  stroke: var(--muted2); fill: none; stroke-width: 1.5;
+}
+.no-data-overlay p {
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: 180px;
+  line-height: 1.55;
+}
+
+/* TABLE SECTION ───────────────────────────────────────────── */
+.ts-table-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.ts-table-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+  gap: .75rem; flex-wrap: wrap;
+}
+.ts-table-title {
+  font-family: var(--font-mono);
+  font-size: .67rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex; align-items: center; gap: .45rem;
+}
+.ts-table-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 11px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.ts-count-pill {
+  font-family: var(--font-mono);
+  font-size: .6rem;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-mid);
+  padding: .12rem .55rem;
+  border-radius: 100px;
+}
+.ts-table-scroll { max-height: 290px; overflow-y: auto; }
+
+/* Spinner */
+.loading-row {
+  display: flex; align-items: center; justify-content: center; gap: .75rem;
+  padding: 2.25rem;
+}
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+.loading-row span { font-family: var(--font-mono); font-size: .75rem; color: var(--muted); }
+
+.empty-row { padding: 2.5rem 1.5rem; text-align: center; }
+.empty-row svg { width: 30px; height: 30px; stroke: var(--muted2); fill: none; stroke-width: 1.5; margin-bottom: .65rem; }
+.empty-row p { font-family: var(--font-mono); font-size: .74rem; color: var(--muted); line-height: 1.65; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER ─────────────────────────────────────────────── -->
+<div class="page-header fade-in">
+  <h1><span class="hd-accent">//</span> Historical Analysis</h1>
+  <p>Local traffic trends &amp; cloud analytics via ThingSpeak channel
+    <span style="color:var(--accent);font-family:var(--font-mono);">3397210</span>
+  </p>
+</div>
+
+<!-- LOCAL CHARTS ────────────────────────────────────────────── -->
+<div class="grid-2 section fade-in">
+  <div class="card">
+    <div class="section-title">// Normal vs Attack Timeline (Local SQLite)</div>
+    <div class="chart-wrap-tall"><canvas id="timelineChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="section-title">// Attack Types Distribution (Local SQLite)</div>
+    <div class="chart-wrap-tall"><canvas id="typeBar"></canvas></div>
+  </div>
+</div>
+
+<div class="grid-2 section fade-in">
+  <div class="card">
+    <div class="section-title">// Actions Breakdown</div>
+    <div class="chart-wrap"><canvas id="actionDonut"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="section-title">// AI Confidence Distribution</div>
+    <div class="chart-wrap"><canvas id="confBar"></canvas></div>
+  </div>
+</div>
+
+<!-- DIVIDER ─────────────────────────────────────────────────── -->
+<div class="section-divider fade-in">
+  <div class="sd-line"></div>
+  <div class="sd-label">
+    <svg viewBox="0 0 24 24"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+    Cloud Analytics — ThingSpeak
+  </div>
+  <div class="sd-line"></div>
+</div>
+
+<!-- THINGSPEAK MODULE ───────────────────────────────────────── -->
+<div class="fade-in">
+
+  <!-- Header -->
+  <div class="ts-header">
+    <div class="ts-title">
+      <div class="ts-title-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+      </div>
+      <div>
+        <div class="ts-title-name">IDS-IoT Raffinerie</div>
+        <div class="ts-title-sub">THINGSPEAK &middot; CHANNEL 3397210</div>
+      </div>
+    </div>
+    <div class="ts-live-pill">
+      <span class="dot"></span>
+      <span id="ts-status-text">Connecting…</span>
+    </div>
+  </div>
+
+  <!-- Metric cards -->
+  <div class="ts-metrics">
+    <div class="ts-metric s-blue">
+      <div class="ts-metric-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+      <div class="ts-metric-label">Channel ID</div>
+      <div class="ts-metric-value c-blue">3397210</div>
+      <div class="ts-metric-sub">mathworks.com</div>
+    </div>
+    <div class="ts-metric" id="met-status">
+      <div class="ts-metric-icon"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <div class="ts-metric-label">Status</div>
+      <div class="ts-metric-value" id="m-status">—</div>
+      <div class="ts-metric-sub" id="m-status-sub">checking…</div>
+    </div>
+    <div class="ts-metric" id="met-attack">
+      <div class="ts-metric-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <div class="ts-metric-label">Latest Attack</div>
+      <div class="ts-metric-value" id="m-attack">—</div>
+      <div class="ts-metric-sub" id="m-attack-sub">awaiting data</div>
+    </div>
+    <div class="ts-metric" id="met-conf">
+      <div class="ts-metric-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+      <div class="ts-metric-label">Confidence</div>
+      <div class="ts-metric-value" id="m-conf">—</div>
+      <div class="ts-metric-sub">latest reading</div>
+    </div>
+    <div class="ts-metric" id="met-total">
+      <div class="ts-metric-icon"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+      <div class="ts-metric-label">Total Entries</div>
+      <div class="ts-metric-value" id="m-total">—</div>
+      <div class="ts-metric-sub">cloud records</div>
+    </div>
+  </div>
+
+  <!-- Primary charts -->
+  <div class="ts-charts-top">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div>
+          <div class="chart-card-title">Confidence Timeline</div>
+          <div class="chart-card-subtitle">AI confidence % over last 60 readings</div>
+        </div>
+        <button class="refresh-btn" id="btn-refresh" onclick="refreshTS()" title="Refresh">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+      <div class="chart-wrap-240" style="position:relative;">
+        <canvas id="tsConfLine"></canvas>
+        <div class="no-data-overlay" id="nd-conf" style="display:none;">
+          <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          <p>No confidence data yet.<br>Start the IDS pipeline.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div>
+          <div class="chart-card-title">Attack Distribution</div>
+          <div class="chart-card-subtitle">All cloud entries</div>
+        </div>
+      </div>
+      <div class="chart-wrap-240" style="position:relative;">
+        <canvas id="tsAttackDonut"></canvas>
+        <div class="no-data-overlay" id="nd-donut" style="display:none;">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p>No attack data yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secondary charts -->
+  <div class="ts-charts-bot">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div>
+          <div class="chart-card-title">Most Targeted Nodes</div>
+          <div class="chart-card-subtitle">Attack count per node</div>
+        </div>
+      </div>
+      <div class="chart-wrap-200" style="position:relative;">
+        <canvas id="tsNodeBar"></canvas>
+        <div class="no-data-overlay" id="nd-nodes" style="display:none;">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <p>No node data yet.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div>
+          <div class="chart-card-title">Recent Attack Trend</div>
+          <div class="chart-card-subtitle">Attack rate % — last 30 readings</div>
+        </div>
+      </div>
+      <div class="chart-wrap-200" style="position:relative;">
+        <canvas id="tsTrendLine"></canvas>
+        <div class="no-data-overlay" id="nd-trend" style="display:none;">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <p>No trend data yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="ts-table-card">
+    <div class="ts-table-top">
+      <div class="ts-table-title">
+        Latest Entries
+        <span class="ts-count-pill" id="ts-count">—</span>
+      </div>
+      <span class="live-badge" id="ts-table-live" style="display:none;"><span class="live-dot"></span>LIVE</span>
+    </div>
+
+    <div id="ts-loading" class="loading-row">
+      <div class="spinner"></div>
+      <span>Fetching ThingSpeak data…</span>
+    </div>
+
+    <div id="ts-empty" class="empty-row" style="display:none;">
+      <svg viewBox="0 0 24 24"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+      <p>No ThingSpeak data yet.<br>Send events via Node-RED to populate this feed.</p>
+    </div>
+
+    <div class="ts-table-scroll" id="ts-table-wrap" style="display:none;">
+      <table class="ids-table" id="ts-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Node</th>
+            <th>Attack Code</th>
+            <th>Confidence</th>
+            <th>Label</th>
+          </tr>
+        </thead>
+        <tbody id="ts-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- end ts module -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var TS_CODE_LABEL  = {0:'Normal',1:'DoS',2:'Injection',3:'Probe',5:'Physical'};
+var TS_NODE_NAMES  = {1:'PLC Reactor',2:'PLC Pump',3:'Pressure Sensor',4:'Temp Sensor',5:'SCADA GW'};
+
+var tsConfChart   = null;
+var tsDonutChart  = null;
+var tsNodeChart   = null;
+var tsTrendChart  = null;
+
+/* ── LOCAL CHARTS ─────────────────────────────────────────── */
+async function loadLocalCharts(){
+  try {
+    var results = await Promise.all([
+      fetch('/api/stats/timeline').then(r=>r.json()),
+      fetch('/api/stats/by_type').then(r=>r.json()),
+      fetch('/api/stats/actions').then(r=>r.json()),
+      fetch('/api/stats/confidence_dist').then(r=>r.json()),
+    ]);
+    var timeline = results[0], types = results[1], actions = results[2], conf = results[3];
+
+    /* Timeline */
+    new Chart(document.getElementById('timelineChart'),{
+      type:'line',
+      data:{
+        labels: timeline.map(r=>r.t),
+        datasets:[
+          {label:'Normal', data:timeline.map(r=>r.normal),
+           borderColor:getCSSVar('--ok'), backgroundColor:'rgba(13,158,82,.08)',
+           tension:.4, pointRadius:0, fill:true, borderWidth:2},
+          {label:'Attack', data:timeline.map(r=>r.attack),
+           borderColor:getCSSVar('--critical'), backgroundColor:'rgba(200,0,30,.08)',
+           tension:.4, pointRadius:0, fill:true, borderWidth:2},
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:500},
+        scales:{
+          x:{grid:{color:gridColor()}, ticks:{maxTicksLimit:12}},
+          y:{grid:{color:gridColor()}, beginAtZero:true}
+        },
+        plugins:{legend:{labels:{padding:16, usePointStyle:true}}}
+      }
+    });
+
+    /* Types bar */
+    var tc = [getCSSVar('--ok'),getCSSVar('--critical'),getCSSVar('--danger'),getCSSVar('--warn'),getCSSVar('--accent')];
+    new Chart(document.getElementById('typeBar'),{
+      type:'bar',
+      data:{
+        labels: types.map(r=>r.label),
+        datasets:[{
+          label:'Events', data:types.map(r=>r.c),
+          backgroundColor: types.map(function(_,i){ return tc[i%tc.length]+'cc'; }),
+          borderColor:     types.map(function(_,i){ return tc[i%tc.length]; }),
+          borderWidth:1, borderRadius:5,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:500},
+        scales:{
+          x:{grid:{color:gridColor()}},
+          y:{grid:{color:gridColor()}, beginAtZero:true}
+        },
+        plugins:{legend:{display:false}}
+      }
+    });
+
+    /* Actions donut */
+    var ac = {ALLOW:getCSSVar('--ok'),REJECT:getCSSVar('--critical'),QUARANTINE:getCSSVar('--danger'),WATCHLIST:getCSSVar('--warn')};
+    new Chart(document.getElementById('actionDonut'),{
+      type:'doughnut',
+      data:{
+        labels: actions.map(r=>r.action),
+        datasets:[{
+          data: actions.map(r=>r.c),
+          backgroundColor: actions.map(function(r){ return (ac[r.action]||getCSSVar('--accent'))+'cc'; }),
+          borderWidth:0, hoverOffset:6,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:500}, cutout:'66%',
+        plugins:{legend:{position:'right', labels:{padding:14, usePointStyle:true, boxWidth:10}}}
+      }
+    });
+
+    /* Confidence dist */
+    new Chart(document.getElementById('confBar'),{
+      type:'bar',
+      data:{
+        labels: conf.map(r=>r.range),
+        datasets:[{
+          label:'Count', data:conf.map(r=>r.count),
+          backgroundColor:getCSSVar('--accent')+'88',
+          borderColor:getCSSVar('--accent'),
+          borderWidth:1, borderRadius:5,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:500},
+        scales:{
+          x:{grid:{color:gridColor()}},
+          y:{grid:{color:gridColor()}, beginAtZero:true}
+        },
+        plugins:{legend:{display:false}}
+      }
+    });
+  } catch(e){}
+}
+
+/* ── THINGSPEAK ───────────────────────────────────────────── */
+async function loadThingSpeak(){
+  try {
+    var data  = await fetch('/api/thingspeak/feeds?results=60').then(r=>r.json());
+
+    if(data.error){
+      document.getElementById('ts-status-text').textContent = 'Unavailable';
+      document.getElementById('m-status').textContent = 'ERROR';
+      document.getElementById('m-status').className   = 'ts-metric-value c-crit';
+      document.getElementById('m-status-sub').textContent = (data.error||'').substring(0,30);
+      document.getElementById('ts-loading').style.display = 'none';
+      document.getElementById('ts-empty').style.display   = 'block';
+      ['nd-conf','nd-donut','nd-nodes','nd-trend'].forEach(function(id){
+        document.getElementById(id).style.display = 'flex';
+      });
+      return;
+    }
+
+    var feeds   = data.feeds   || [];
+    var channel = data.channel || {};
+    updateTSMetrics(feeds, channel);
+    renderTSCharts(feeds);
+    renderTSTable(feeds);
+  } catch(e){
+    console.error('ThingSpeak error:', e);
+    document.getElementById('ts-status-text').textContent = 'Error';
+    document.getElementById('ts-loading').style.display   = 'none';
+    document.getElementById('ts-empty').style.display     = 'block';
+  }
+}
+
+function updateTSMetrics(feeds, channel){
+  var valid = feeds.filter(function(f){ return f.field2!==null&&f.field2!==undefined&&f.field2!==''; });
+
+  if(!valid.length){
+    document.getElementById('m-status').textContent     = 'EMPTY';
+    document.getElementById('m-status').className       = 'ts-metric-value c-warn';
+    document.getElementById('m-status-sub').textContent = 'no data received';
+    document.getElementById('ts-status-text').textContent = 'Empty channel';
+    return;
+  }
+
+  document.getElementById('m-status').textContent      = 'LIVE';
+  document.getElementById('m-status').className        = 'ts-metric-value c-ok';
+  document.getElementById('m-status-sub').textContent  = valid.length + ' entries fetched';
+  document.getElementById('met-status').className      = 'ts-metric s-ok';
+  document.getElementById('ts-status-text').textContent = 'Connected';
+
+  var latest = valid[valid.length - 1];
+  var code   = parseInt(latest.field2) || 0;
+  var lbl    = TS_CODE_LABEL[code] || 'Unknown';
+  document.getElementById('m-attack').textContent = lbl;
+  var lc = {Normal:'c-ok', DoS:'c-crit', Injection:'c-warn', Probe:'c-warn'};
+  document.getElementById('m-attack').className = 'ts-metric-value ' + (lc[lbl]||'');
+  var ts2 = latest.created_at ? new Date(latest.created_at).toLocaleTimeString() : '—';
+  document.getElementById('m-attack-sub').textContent = 'at ' + ts2;
+  document.getElementById('met-attack').className = 'ts-metric ' + (lbl!=='Normal'?'s-crit':'s-ok');
+
+  var conf = parseInt(latest.field3) || 0;
+  document.getElementById('m-conf').textContent = conf + '%';
+  document.getElementById('m-conf').className   = 'ts-metric-value ' + (conf>=80?'c-ok':conf>=60?'c-warn':'c-crit');
+  document.getElementById('met-conf').className = 'ts-metric ' + (conf>=80?'s-ok':conf>=60?'s-warn':'s-crit');
+
+  var lastId = channel.last_entry_id || valid.length;
+  document.getElementById('m-total').textContent = lastId;
+  document.getElementById('met-total').className = 'ts-metric s-blue';
+}
+
+function renderTSCharts(feeds){
+  var valid = feeds.filter(function(f){ return f.field2!==null&&f.field2!==''&&f.field2!==undefined; });
+
+  /* 1. Confidence timeline */
+  var cf = valid.filter(function(f){ return f.field3!==null&&f.field3!==''; }).slice(-60);
+  if(cf.length >= 2){
+    document.getElementById('nd-conf').style.display = 'none';
+    var labels = cf.map(function(f){
+      var d = new Date(f.created_at);
+      return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    });
+    var vals = cf.map(function(f){ return parseInt(f.field3)||0; });
+    var pts  = vals.map(function(v){ return v>=80?getCSSVar('--ok'):v>=60?getCSSVar('--warn'):getCSSVar('--critical'); });
+
+    if(tsConfChart) tsConfChart.destroy();
+    tsConfChart = new Chart(document.getElementById('tsConfLine'),{
+      type:'line',
+      data:{
+        labels:labels,
+        datasets:[{
+          label:'Confidence %', data:vals,
+          borderColor:getCSSVar('--accent'), backgroundColor:'rgba(26,86,219,.07)',
+          borderWidth:2, tension:.4, pointRadius:3, fill:true,
+          pointBackgroundColor:pts, pointBorderColor:pts,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:400},
+        scales:{
+          x:{grid:{color:gridColor()}, ticks:{maxTicksLimit:10, font:{size:10}}},
+          y:{grid:{color:gridColor()}, min:0, max:100, ticks:{callback:function(v){return v+'%';}, font:{size:10}}}
+        },
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:function(ctx){return ' '+ctx.parsed.y+'%';}}}}
+      }
+    });
+  } else { document.getElementById('nd-conf').style.display = 'flex'; }
+
+  /* 2. Attack donut */
+  var cc = {};
+  valid.forEach(function(f){
+    var k = TS_CODE_LABEL[parseInt(f.field2)]||'Unknown';
+    cc[k] = (cc[k]||0) + 1;
+  });
+  var dLabels = Object.keys(cc);
+  var dData   = dLabels.map(function(k){ return cc[k]; });
+  var DONUT_C = {Normal:getCSSVar('--ok'),DoS:getCSSVar('--critical'),Injection:getCSSVar('--danger'),Probe:getCSSVar('--warn'),Physical:getCSSVar('--accent')};
+  var dColors = dLabels.map(function(k){ return (DONUT_C[k]||getCSSVar('--accent'))+'cc'; });
+
+  if(dLabels.length){
+    document.getElementById('nd-donut').style.display = 'none';
+    if(tsDonutChart) tsDonutChart.destroy();
+    tsDonutChart = new Chart(document.getElementById('tsAttackDonut'),{
+      type:'doughnut',
+      data:{labels:dLabels, datasets:[{data:dData, backgroundColor:dColors, borderWidth:0, hoverOffset:5}]},
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:400}, cutout:'62%',
+        plugins:{legend:{position:'bottom', labels:{font:{size:10}, padding:10, boxWidth:10, usePointStyle:true}}}
+      }
+    });
+  } else { document.getElementById('nd-donut').style.display = 'flex'; }
+
+  /* 3. Targeted nodes */
+  var na = {};
+  valid.forEach(function(f){
+    var nid  = parseInt(f.field1)||0;
+    var code = parseInt(f.field2)||0;
+    if(code!==0&&nid>0){
+      var name = TS_NODE_NAMES[nid]||('Node '+nid);
+      na[name] = (na[name]||0)+1;
+    }
+  });
+  var nLabels = Object.keys(na).sort(function(a,b){ return na[b]-na[a]; });
+  var nData   = nLabels.map(function(k){ return na[k]; });
+
+  if(nLabels.length){
+    document.getElementById('nd-nodes').style.display = 'none';
+    if(tsNodeChart) tsNodeChart.destroy();
+    tsNodeChart = new Chart(document.getElementById('tsNodeBar'),{
+      type:'bar',
+      data:{labels:nLabels, datasets:[{label:'Attacks', data:nData,
+        backgroundColor:getCSSVar('--critical')+'aa', borderColor:getCSSVar('--critical'),
+        borderWidth:1, borderRadius:4}]},
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:400},
+        indexAxis:'y',
+        scales:{
+          x:{grid:{color:gridColor()}, beginAtZero:true, ticks:{font:{size:10}}},
+          y:{grid:{color:'transparent'}, ticks:{font:{size:10}}}
+        },
+        plugins:{legend:{display:false}}
+      }
+    });
+  } else { document.getElementById('nd-nodes').style.display = 'flex'; }
+
+  /* 4. Attack trend */
+  var tf = valid.slice(-30);
+  if(tf.length >= 2){
+    document.getElementById('nd-trend').style.display = 'none';
+    var tLabels = tf.map(function(f){
+      var d = new Date(f.created_at);
+      return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    });
+    var tData = tf.map(function(f){ return (parseInt(f.field2)||0)!==0?1:0; });
+    var rolling = tData.map(function(_,i,arr){
+      var start  = Math.max(0,i-4);
+      var window = arr.slice(start,i+1);
+      return Math.round(window.reduce(function(a,b){return a+b;},0)/window.length*100);
+    });
+
+    if(tsTrendChart) tsTrendChart.destroy();
+    tsTrendChart = new Chart(document.getElementById('tsTrendLine'),{
+      type:'line',
+      data:{labels:tLabels, datasets:[{
+        label:'Attack Rate %', data:rolling,
+        borderColor:getCSSVar('--warn'), backgroundColor:'rgba(196,124,0,.08)',
+        borderWidth:2, tension:.4, pointRadius:2, fill:true,
+      }]},
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{duration:400},
+        scales:{
+          x:{grid:{color:gridColor()}, ticks:{maxTicksLimit:8, font:{size:10}}},
+          y:{grid:{color:gridColor()}, min:0, max:100, ticks:{callback:function(v){return v+'%';}, font:{size:10}}}
+        },
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:function(ctx){return ' '+ctx.parsed.y+'% attack rate';}}}}
+      }
+    });
+  } else { document.getElementById('nd-trend').style.display = 'flex'; }
+}
+
+function renderTSTable(feeds){
+  var valid = feeds.filter(function(f){
+    return f.field2!==null&&f.field2!==''&&f.field2!==undefined;
+  }).slice(-20).reverse();
+
+  document.getElementById('ts-loading').style.display = 'none';
+
+  if(!valid.length){
+    document.getElementById('ts-empty').style.display     = 'block';
+    document.getElementById('ts-table-wrap').style.display = 'none';
+    document.getElementById('ts-table-live').style.display = 'none';
+    document.getElementById('ts-count').textContent = '0';
+    return;
+  }
+
+  document.getElementById('ts-table-wrap').style.display = 'block';
+  document.getElementById('ts-empty').style.display       = 'none';
+  document.getElementById('ts-table-live').style.display  = 'inline-flex';
+  document.getElementById('ts-count').textContent = valid.length;
+
+  document.getElementById('ts-body').innerHTML = valid.map(function(f){
+    var node  = parseInt(f.field1)||0;
+    var code  = parseInt(f.field2)||0;
+    var conf  = parseInt(f.field3)||0;
+    var lbl   = TS_CODE_LABEL[code]||'Unknown';
+    var lc    = labelColor(lbl);
+    var ts    = f.created_at ? new Date(f.created_at).toLocaleString() : '—';
+    var nname = node>0 ? (TS_NODE_NAMES[node]||'Node '+node) : '—';
+    var cc2   = getCSSVar(conf>=80?'--ok':conf>=60?'--warn':'--critical');
+    return '<tr>'
+      + '<td class="c-muted">' + ts + '</td>'
+      + '<td class="c-accent fw7">' + nname + '</td>'
+      + '<td class="c-muted">' + code + '</td>'
+      + '<td style="color:'+cc2+';font-weight:700">' + conf + '%</td>'
+      + '<td style="color:'+lc+';font-weight:700">' + lbl + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function refreshTS(){
+  var btn = document.getElementById('btn-refresh');
+  btn.classList.add('spinning');
+  loadThingSpeak().finally(function(){ btn.classList.remove('spinning'); });
+}
+
+/* INIT */
+loadLocalCharts();
+loadThingSpeak();
+setInterval(loadLocalCharts,  20000);
+setInterval(loadThingSpeak,   30000);
+</script>
+{% endblock %}

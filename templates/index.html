@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% block title %}Overview — IDS-IoT SWaT{% endblock %}
+
+{% block head %}
+<style>
+/* ── OVERVIEW-SPECIFIC ─────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+@media(max-width:1100px){ .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:600px){  .kpi-grid { grid-template-columns: 1fr; } }
+
+/* KPI card inner layout */
+.kpi-inner {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.kpi-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: .65rem;
+  flex-shrink: 0;
+}
+.kpi-icon svg {
+  width: 18px; height: 18px;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.kpi-icon.blue  { background: var(--accent-soft); color: var(--accent); }
+.kpi-icon.ok    { background: var(--ok-bg);       color: var(--ok); }
+.kpi-icon.crit  { background: var(--critical-bg); color: var(--critical); }
+.kpi-icon.warn  { background: var(--warn-bg);     color: var(--warn); }
+
+/* Delta badge */
+.kpi-delta {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-family: var(--font-mono);
+  font-size: .62rem;
+  font-weight: 700;
+  padding: .15rem .5rem;
+  border-radius: 100px;
+  margin-top: .3rem;
+}
+.kpi-delta.up   { background: var(--ok-bg);       color: var(--ok); }
+.kpi-delta.down { background: var(--critical-bg); color: var(--critical); }
+.kpi-delta.neu  { background: var(--warn-bg);     color: var(--warn); }
+
+/* NODE GRID ───────────────────────────────────────────────── */
+.node-grid {
+  display: grid;
+  grid-template-columns: repeat(5,1fr);
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+@media(max-width:1280px){ .node-grid { grid-template-columns: repeat(3,1fr); } }
+@media(max-width:760px){  .node-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:460px){  .node-grid { grid-template-columns: 1fr; } }
+
+.node-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.2rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: border-color .18s, box-shadow .18s;
+}
+.node-card:hover { border-color: var(--border2); box-shadow: var(--shadow-md); }
+.node-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--border);
+  transition: background .3s;
+}
+.node-card.status-ok::before       { background: var(--ok); }
+.node-card.status-warn::before     { background: var(--warn); }
+.node-card.status-danger::before   { background: var(--danger); }
+.node-card.status-critical::before { background: var(--critical); }
+
+.node-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .6rem;
+}
+.node-id-label {
+  font-family: var(--font-mono);
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.node-role {
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: .35rem;
+}
+.node-stats {
+  font-family: var(--font-mono);
+  font-size: .74rem;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: .25rem;
+}
+.node-meta {
+  font-size: .74rem;
+  color: var(--muted);
+}
+
+/* FEED CARD ───────────────────────────────────────────────── */
+.feed-row {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .8rem;
+  transition: background .1s;
+}
+.feed-row:last-child { border-bottom: none; }
+.feed-row:hover { background: var(--accent-soft); margin: 0 -1.5rem; padding-left: 1.5rem; padding-right: 1.5rem; }
+.feed-time {
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 56px;
+}
+
+/* LAST ALERT CARD ─────────────────────────────────────────── */
+.alert-detail-row {
+  display: flex; align-items: baseline; gap: .6rem;
+  padding: .42rem 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: .82rem;
+}
+.alert-detail-row:last-child { border-bottom: none; }
+.alert-detail-key {
+  font-size: .64rem;
+  letter-spacing: .1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  min-width: 72px;
+  flex-shrink: 0;
+}
+.alert-detail-val {
+  color: var(--text2);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER ─────────────────────────────────────────────── -->
+<div class="page-header fade-in">
+  <div class="page-header-inner">
+    <div>
+      <h1><span class="hd-accent">//</span> Threat Overview</h1>
+      <p>Real-time ICS/IoT intrusion detection &mdash; SWaT testbed &nbsp;
+        <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- KPI ROW ─────────────────────────────────────────────────── -->
+<div class="kpi-grid fade-in">
+
+  <div class="card card-kpi kpi-blue">
+    <div class="kpi-icon blue">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 001.95-1.57l1.65-7.43H6"/></svg>
+    </div>
+    <div class="card-label">Total Analysed</div>
+    <div class="kpi-value" id="v-total">—</div>
+    <div class="kpi-sub">packets processed</div>
+  </div>
+
+  <div class="card card-kpi kpi-ok">
+    <div class="kpi-icon ok">
+      <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+    <div class="card-label">Normal Traffic</div>
+    <div class="kpi-value c-ok" id="v-normal">—</div>
+    <div class="kpi-sub" id="v-normal-pct">— of traffic</div>
+  </div>
+
+  <div class="card card-kpi kpi-crit">
+    <div class="kpi-icon crit">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div class="card-label">Attacks Detected</div>
+    <div class="kpi-value c-crit" id="v-attacks">—</div>
+    <div class="kpi-sub" id="v-attack-rate">attack rate</div>
+  </div>
+
+  <div class="card card-kpi kpi-warn">
+    <div class="kpi-icon warn">
+      <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+    </div>
+    <div class="card-label">Avg AI Confidence</div>
+    <div class="kpi-value c-warn" id="v-conf">—</div>
+    <div class="kpi-sub">model certainty</div>
+  </div>
+
+</div>
+
+<!-- NODE STATUS ──────────────────────────────────────────────── -->
+<div class="section fade-in">
+  <div class="section-title" style="margin-bottom:.85rem;padding-bottom:.6rem;border-bottom:1px solid var(--border);">
+    // Node Status &mdash; Live Voyants
+  </div>
+  <div class="node-grid" id="node-grid">
+    {% for i in range(1,6) %}
+    <div class="node-card" id="node-card-{{ i }}">
+      <div class="node-card-header">
+        <span class="node-id-label">NODE_{{ i }}</span>
+        <span class="node-pulse ok" id="dot-node_{{ i }}"></span>
+      </div>
+      <div class="node-role" id="lbl-node_{{ i }}">Loading…</div>
+      <div class="node-stats" id="stat-node_{{ i }}">—</div>
+      <div class="node-meta" id="meta-node_{{ i }}">—</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- LAST ALERT + LIVE FEED ───────────────────────────────────── -->
+<div class="grid-2 section fade-in">
+  <div class="card">
+    <div class="section-title">// Last Alert</div>
+    <div id="last-alert-box">
+      <span style="color:var(--muted);font-size:.85rem;">Waiting for data…</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-title" style="justify-content:space-between;">
+      <span>// Live Feed</span>
+      <span class="live-badge" style="font-size:.62rem;"><span class="live-dot"></span>STREAMING</span>
+    </div>
+    <div id="live-feed" style="font-family:var(--font-mono);">
+      <span style="color:var(--muted);font-size:.85rem;">Connecting…</span>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS ──────────────────────────────────────────────────── -->
+<div class="grid-2 section fade-in">
+  <div class="card">
+    <div class="section-title">// Traffic Timeline (last 60 intervals)</div>
+    <div class="chart-wrap"><canvas id="timelineChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="section-title">// Attack Distribution</div>
+    <div class="chart-wrap"><canvas id="typeChart"></canvas></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let timelineChart, typeChart;
+
+const NODE_LABELS = {
+  node_1:'PLC Reactor', node_2:'PLC Pump',
+  node_3:'Pressure Sensor', node_4:'Temp Sensor', node_5:'SCADA GW'
+};
+
+const SEV_CLASS = { OK:'ok', WARNING:'warn', DANGER:'danger', CRITICAL:'critical' };
+
+function updateNodeCard(nid, n){
+  var card = document.getElementById('node-card-' + nid.replace('node_',''));
+  var dot  = document.getElementById('dot-'+nid);
+  var lbl  = document.getElementById('lbl-'+nid);
+  var stat = document.getElementById('stat-'+nid);
+  var meta = document.getElementById('meta-'+nid);
+  var sev  = n ? n.severity : 'OK';
+  var sc   = SEV_CLASS[sev] || 'ok';
+
+  if(card){
+    card.className = 'node-card status-' + sc;
+  }
+  if(dot) dot.className = 'node-pulse ' + sc;
+  if(lbl) lbl.textContent = NODE_LABELS[nid] || nid;
+
+  if(stat){
+    if(n){
+      var colClass = {OK:'c-ok',WARNING:'c-warn',DANGER:'c-danger',CRITICAL:'c-crit'}[sev]||'';
+      stat.innerHTML = '<span class="' + colClass + ' fw7">' + n.label + '</span>';
+    } else {
+      stat.innerHTML = '<span style="color:var(--muted)">No data</span>';
+    }
+  }
+  if(meta){
+    if(n) meta.textContent = (n.confidence*100).toFixed(0) + '% conf · ' + timeAgo(n.timestamp);
+    else  meta.textContent = '—';
+  }
+}
+
+async function loadOverview(){
+  try {
+    var d = await fetch('/api/stats/overview').then(r=>r.json());
+    document.getElementById('v-total').textContent   = (d.total||0).toLocaleString();
+    document.getElementById('v-normal').textContent  = (d.normal||0).toLocaleString();
+    document.getElementById('v-normal-pct').textContent = ((d.normal/Math.max(d.total,1))*100).toFixed(1) + '% of traffic';
+    document.getElementById('v-attacks').textContent = (d.attacks||0).toLocaleString();
+    document.getElementById('v-attack-rate').textContent = (d.attack_rate||0) + '% attack rate';
+    document.getElementById('v-conf').textContent    = ((d.avg_confidence||0)*100).toFixed(1) + '%';
+
+    if(d.last_alert){
+      var a = d.last_alert;
+      document.getElementById('last-alert-box').innerHTML = [
+        ['NODE',   '<span class="c-accent fw7">'+a.node_id+'</span>'],
+        ['IP',     '<span class="mono">'+a.ip+'</span>'],
+        ['LABEL',  '<span style="color:'+labelColor(a.label)+'" class="fw7">'+a.label+'</span>'],
+        ['ACTION', actionBadge(a.action)],
+        ['CONF',   '<span class="mono">'+(a.confidence*100).toFixed(0)+'%</span>'],
+        ['TIME',   '<span class="c-muted mono">'+timeAgo(a.timestamp)+'</span>'],
+      ].map(function(r){
+        return '<div class="alert-detail-row"><span class="alert-detail-key">'+r[0]+'</span><span class="alert-detail-val">'+r[1]+'</span></div>';
+      }).join('');
+    }
+
+    // Nodes
+    var nodes = await fetch('/api/stats/node_status').then(r=>r.json());
+    var nodeMap = {};
+    nodes.forEach(function(n){ nodeMap[n.node_id] = n; });
+    ['node_1','node_2','node_3','node_4','node_5'].forEach(function(nid){
+      updateNodeCard(nid, nodeMap[nid]||null);
+    });
+  } catch(e){}
+}
+
+async function loadTimeline(){
+  try {
+    var rows = await fetch('/api/stats/timeline').then(r=>r.json());
+    if(timelineChart) timelineChart.destroy();
+    timelineChart = new Chart(document.getElementById('timelineChart'),{
+      type:'line',
+      data:{
+        labels: rows.map(r=>r.t),
+        datasets:[
+          {label:'Normal', data:rows.map(r=>r.normal),
+           borderColor:getCSSVar('--ok'),
+           backgroundColor:'rgba(13,158,82,.08)',
+           tension:.4, pointRadius:0, fill:true, borderWidth:2},
+          {label:'Attack', data:rows.map(r=>r.attack),
+           borderColor:getCSSVar('--critical'),
+           backgroundColor:'rgba(200,0,30,.08)',
+           tension:.4, pointRadius:0, fill:true, borderWidth:2},
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:false,
+        scales:{
+          x:{grid:{color:gridColor()}, ticks:{maxTicksLimit:10}},
+          y:{grid:{color:gridColor()}, beginAtZero:true}
+        },
+        plugins:{
+          legend:{ labels:{ padding:16, boxWidth:12, usePointStyle:true } }
+        }
+      }
+    });
+  } catch(e){}
+}
+
+async function loadTypeChart(){
+  try {
+    var rows = await fetch('/api/stats/by_type').then(r=>r.json());
+    var colors = rows.map(function(r){
+      if(r.label==='Normal')           return getCSSVar('--ok');
+      if(r.label==='DoS')              return getCSSVar('--critical');
+      if(r.label&&r.label.startsWith('Inj')) return getCSSVar('--danger');
+      if(r.label==='Probe')            return getCSSVar('--warn');
+      return getCSSVar('--accent');
+    });
+    if(typeChart) typeChart.destroy();
+    typeChart = new Chart(document.getElementById('typeChart'),{
+      type:'bar',
+      data:{
+        labels: rows.map(r=>r.label),
+        datasets:[{
+          label:'Count', data:rows.map(r=>r.c),
+          backgroundColor: colors.map(c=>c+'cc'),
+          borderColor: colors,
+          borderWidth: 1, borderRadius: 5,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:false,
+        scales:{
+          x:{grid:{color:gridColor()}},
+          y:{grid:{color:gridColor()}, beginAtZero:true}
+        },
+        plugins:{ legend:{ display:false } }
+      }
+    });
+  } catch(e){}
+}
+
+/* SSE Live Feed */
+function startLiveFeed(){
+  var src  = new EventSource('/api/alerts/stream');
+  var feed = document.getElementById('live-feed');
+  src.onmessage = function(e){
+    try {
+      var rows = JSON.parse(e.data);
+      feed.innerHTML = rows.map(function(a){
+        return '<div class="feed-row">'
+          +'<span class="feed-time">'+timeAgo(a.timestamp)+'</span>'
+          +'<span class="c-accent fw7" style="min-width:62px">'+a.node_id+'</span>'
+          +'<span style="color:'+labelColor(a.label)+';font-weight:700;flex:1">'+a.label+'</span>'
+          +actionBadge(a.action)
+          +'<span class="c-muted mono" style="font-size:.7rem">'+(a.confidence*100).toFixed(0)+'%</span>'
+          +'</div>';
+      }).join('');
+      loadOverview();
+    } catch(err){}
+  };
+  src.onerror = function(){ setTimeout(startLiveFeed, 3000); src.close(); };
+}
+
+loadOverview();
+loadTimeline();
+loadTypeChart();
+startLiveFeed();
+setInterval(function(){ loadTimeline(); loadTypeChart(); }, 15000);
+</script>
+{% endblock %}
