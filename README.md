@@ -1,16 +1,18 @@
-# IDS-IoT SWaT — M2 : Data Scientist & API IA
+# IDS-IoT Dashboard — ASO Analytics & Monitoring
 
-## Rôle de M2
+## Overview
 
-M2 est responsable de l'entraînement du modèle de détection d'intrusions et de l'exposition de ce modèle via une API Flask que Node-RED (M3) appelle en temps réel.
+Application web interactive pour la surveillance en temps réel des anomalies réseau IoT, la détection d'intrusions (IDS) et l'analyse des alertes de sécurité sur le réseau SWaT.
 
 ---
 
-## Source des données
+## Features du Dashboard
 
-Les données utilisées pour l'entraînement proviennent du **trafic réseau simulé via MQTT** par M1 (`traffic_simulator.py` et `attack_injector.py`). Ces messages publiés sur les topics `iiot/node_X/data` ont été collectés et structurés en un dataset CSV.
-
-Le dataset SWaT original (Kaggle) a servi uniquement de **référence et d'inspiration** pour définir les features et les profils d'attaque — il n'est pas utilisé directement pour l'entraînement.
+- **Tableau de bord (index.html)** : Vue d'ensemble en temps réel avec statistiques globales
+- **Alertes (alerts.html)** : Historique et détails des alertes de sécurité détectées
+- **Statistiques (stats.html)** : Analyse détaillée des anomalies par type, node, et période
+- **Historique (history.html)** : Logs complets des événements réseau
+- **Base de données** : Stockage persistant des alertes (`ids_alerts.db`)
 
 ---
 
