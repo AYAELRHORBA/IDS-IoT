@@ -342,34 +342,11 @@ confidence : 0.94
 
 ---
 
-## 📖 Références
+##  Références
 
 - **Dataset SWaT** : iTrust, Singapore University of Technology and Design (SUTD)
   https://itrust.sutd.edu.sg/testbeds/secure-water-treatment-swat/
 
-- **Mirai Botnet** : Krebs, B. (2016). *Source Code for IoT Botnet 'Mirai' Released*
-
-- **ICS Security** : Stouffer, K. et al. (2015). *Guide to Industrial Control Systems
-  Security*. NIST Special Publication 800-82.
-
-- **MQTT Protocol** : OASIS Standard (2019). *MQTT Version 5.0*
-
----
-
-##  Validation du système
-
-| Test | Résultat |
-|------|---------|
-| Mosquitto installé et actif sur port 1883 | ✅ |
-| traffic_simulator.py publie sur iiot/node_X/data | ✅ |
-| Contrat 1 respecté | ✅ |
-| API IA :5001 répond en < 100ms | ✅ |
-| Node-RED détecte les 5 types d'attaques | ✅ |
-| Dashboard Node-RED LEDs fonctionnelles | ✅ |
-| ThingSpeak reçoit les alertes | ✅ |
-| Flask reçoit les alertes de Node-RED | ✅ |
-| SVM Accuracy = 98.9% | ✅ |
-| CV 5-fold = 99.4% ± 0.7% | ✅ |
 
 ---
 
