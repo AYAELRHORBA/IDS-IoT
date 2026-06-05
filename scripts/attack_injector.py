@@ -1,8 +1,5 @@
 # =============================================================
 #
-#  attack_injector.py — VERSION FINALE CORRIGÉE v3
-#  IDS-IoT SWaT | Membre 1 : Aya EL RHORBA
-#
 #  Corrections v3 :
 #    - Bruit naturel important sur toutes les features
 #    - Valeurs fixes supprimées (nb_connexions, entropy, ip)

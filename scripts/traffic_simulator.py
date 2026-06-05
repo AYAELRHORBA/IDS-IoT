@@ -1,8 +1,4 @@
 # =============================================================
-#
-#  traffic_simulator.py — VERSION FINALE CORRIGÉE v3
-#  IDS-IoT SWaT | Membre 1 : Aya EL RHORBA
-#
 #  Corrections v3 :
 #    - Bruit ±20% sur CBR (était ±2%)
 #    - VBR plage élargie : freq 0.05-0.70, interval 700-12000
