@@ -11,8 +11,8 @@ app = Flask(__name__)
 DB = "ids_alerts.db"
 
 # ─── ThingSpeak config ───────────────────────────────────────────
-TS_CHANNEL_ID  = "3398006"
-TS_READ_KEY    = "7QX7P52Z2U4APRQ3"
+TS_CHANNEL_ID  = "3397210"
+TS_READ_KEY    = "3OSHK8U3WKBI0CR5"
 TS_WRITE_KEY   = "5ZUMNMBZANUQ0U7L"   # Already in flows.json (Node-RED)
 TS_BASE_URL    = "https://api.thingspeak.com"
 
