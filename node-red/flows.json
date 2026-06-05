@@ -221,7 +221,7 @@
         "qos": "1",
         "broker": "mqtt_broker",
         "x": 2060,
-        "y": 320,
+        "y": 300,
         "wires": []
     },
     {
@@ -245,7 +245,7 @@
         "type": "debug",
         "z": "27e938e05ed60cef",
         "name": "Debug Flask",
-        "active": false,
+        "active": true,
         "tosidebar": true,
         "x": 2310,
         "y": 400,
@@ -365,8 +365,8 @@
         "z": "27e938e05ed60cef",
         "order": 1,
         "group": "c0cc8e63f893966b",
-        "width": "6",
-        "height": "2",
+        "width": 12,
+        "height": 2,
         "label": "node_1 — PLC Réacteur",
         "colorForValue": [
             {
@@ -397,10 +397,10 @@
         "id": "9375a91e8f31d859",
         "type": "ui_led",
         "z": "27e938e05ed60cef",
-        "order": 2,
+        "order": 4,
         "group": "c0cc8e63f893966b",
-        "width": "6",
-        "height": "2",
+        "width": 12,
+        "height": 2,
         "label": "node_2 — PLC Pompe",
         "colorForValue": [
             {
@@ -431,10 +431,10 @@
         "id": "3345e8b89892aec6",
         "type": "ui_led",
         "z": "27e938e05ed60cef",
-        "order": 3,
+        "order": 7,
         "group": "c0cc8e63f893966b",
-        "width": "6",
-        "height": "2",
+        "width": 12,
+        "height": 2,
         "label": "node_3 — Capteur Pression",
         "colorForValue": [
             {
@@ -465,10 +465,10 @@
         "id": "2e47cf0b3580481d",
         "type": "ui_led",
         "z": "27e938e05ed60cef",
-        "order": 4,
+        "order": 10,
         "group": "c0cc8e63f893966b",
-        "width": "6",
-        "height": "2",
+        "width": 12,
+        "height": 2,
         "label": "node_4 — Capteur Température",
         "colorForValue": [
             {
@@ -499,10 +499,10 @@
         "id": "5e22e3e0bfd69016",
         "type": "ui_led",
         "z": "27e938e05ed60cef",
-        "order": 5,
+        "order": 13,
         "group": "c0cc8e63f893966b",
-        "width": "6",
-        "height": "2",
+        "width": 12,
+        "height": 2,
         "label": "node_5 — Gateway SCADA",
         "colorForValue": [
             {
@@ -553,12 +553,12 @@
         "z": "27e938e05ed60cef",
         "group": "61879fc8f57bb777",
         "order": 1,
-        "width": "12",
-        "height": "2",
+        "width": 12,
+        "height": "1",
         "name": "Dernière alerte",
         "label": "Dernière alerte",
         "format": "{{msg.payload}}",
-        "layout": "",
+        "layout": "row-spread",
         "className": "",
         "style": false,
         "font": "",
@@ -575,8 +575,8 @@
         "name": "Normal vs Attaque",
         "group": "7bab76c5b118ad18",
         "order": 1,
-        "width": "9",
-        "height": "6",
+        "width": "2",
+        "height": 6,
         "label": "Trafic analysé",
         "chartType": "line",
         "legend": "true",
@@ -619,8 +619,8 @@
         "name": "Confiance IA",
         "group": "7bab76c5b118ad18",
         "order": 2,
-        "width": "3",
-        "height": "6",
+        "width": "9",
+        "height": 6,
         "gtype": "gage",
         "title": "",
         "label": "Confiance IA %",
@@ -714,9 +714,9 @@
         "type": "ui_text",
         "z": "27e938e05ed60cef",
         "group": "7bab76c5b118ad18",
-        "order": 2,
-        "width": "12",
-        "height": "1",
+        "order": 3,
+        "width": 12,
+        "height": 2,
         "name": "",
         "label": "Compteurs",
         "format": "{{msg.payload}}",
@@ -729,6 +729,106 @@
         "x": 2490,
         "y": 740,
         "wires": []
+    },
+    {
+        "id": "881d73f8667750dc",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 2,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "191d13d92d230a42",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 3,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "7484c3f381318632",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 5,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "25a86748eba9681c",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 6,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "ce36168f57c19922",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 8,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "68f9937e2b3ab154",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 9,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "6a09559cee0439d8",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 11,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "625cddd5586abe73",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 12,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "ede9511e859e2c28",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 14,
+        "width": 2,
+        "height": 1
+    },
+    {
+        "id": "02ad885df6271953",
+        "type": "ui_spacer",
+        "z": "27e938e05ed60cef",
+        "name": "spacer",
+        "group": "c0cc8e63f893966b",
+        "order": 15,
+        "width": 2,
+        "height": 1
     },
     {
         "id": "mqtt_broker",
@@ -747,7 +847,7 @@
         "tab": "5fb951effafe3ad6",
         "order": 1,
         "disp": true,
-        "width": "12",
+        "width": 14,
         "collapse": false,
         "className": ""
     },
@@ -781,7 +881,7 @@
         "order": 1
     },
     {
-        "id": "d48438be2a83df2c",
+        "id": "4553e04b3ab6fb4e",
         "type": "global-config",
         "env": [],
         "modules": {
