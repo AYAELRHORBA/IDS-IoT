@@ -1,6 +1,6 @@
 """
-api_model.py — IDS-IoT SWaT — VERSION FINALE CORRIGÉE v3
-M2 — Meriem : API Flask IA — port 5001
+api_model.py — IDS-IoT SWaT 
+ API Flask IA — port 5001
 
 Corrections v3 :
   - Suppression de ip_last_octet de FEATURE_COLS

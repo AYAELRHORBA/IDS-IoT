@@ -1,10 +1,6 @@
 """
-IDS-IoT SWaT — Flask Dashboard (M4 — Marwa Begdouri Terraf)
+IDS-IoT SWaT — Flask Dashboard 
 
-État actuel :
-  - Données MOCK (live_simulator) tant que M3/Node-RED n'est pas connecté
-  - Dès que M3 envoie un POST /api/alert → les vraies alertes remplacent le mock
-  - ThingSpeak channel 3397210 intégré (proxy Flask pour éviter CORS)
 """
 
 from flask import Flask, render_template, request, jsonify, Response
@@ -276,7 +272,7 @@ if __name__ == "__main__":
     init_db()
 
     print("\n" + "="*60)
-    print("  IDS-IoT SWaT — M4 Dashboard — Marwa Begdouri Terraf")
+    print("  IDS-IoT SWaT ")
     print("  URL   : http://localhost:5000")
     print("  Pages : /  |  /alerts  |  /history  |  /stats")
     print("  APIs  : /api/alert (POST from Node-RED)")

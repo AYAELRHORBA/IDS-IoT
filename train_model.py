@@ -1,6 +1,5 @@
 """
-train_model.py — IDS-IoT SWaT — VERSION FINALE CORRIGÉE v3
-M2 — Data Scientist
+train_model.py — IDS-IoT SWaT 
 
 Corrections v3 :
   - Suppression de ip_last_octet des features
