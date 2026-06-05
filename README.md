@@ -1,9 +1,93 @@
-# IDS-IoT Dashboard — ASO Analytics & Monitoring
 
-## Overview
+#  IDS-IoT SWaT — Système Intelligent de Détection d'Intrusions
 
-Application web interactive pour la surveillance en temps réel des anomalies réseau IoT, la détection d'intrusions (IDS) et l'analyse des alertes de sécurité sur le réseau SWaT.
+> Projet Fin de Module — IoT | Pr. M. EL Brak
+> Université Abdelmalek Essaâdi — FST Tanger | 2025/2026
 
+---
+
+##  Description du projet
+
+Système de détection d'intrusions (IDS) pour réseaux IoT industriels, entièrement simulé.
+Le système surveille un réseau de 5 capteurs IIoT (raffinerie industrielle) et détecte
+en temps réel les cyberattaques via un modèle de Machine Learning (SVM RBF).
+
+**Contexte industriel :** Inspiré du dataset SWaT (Secure Water Treatment) — Singapore
+University of Technology and Design (SUTD) — référence académique en sécurité ICS/SCADA.
+
+---
+
+##  Architecture globale
+
+```
+ traffic_simulator.py + attack_injector.py
+          ↓ MQTT publish (iiot/node_X/data)
+   [Mosquitto Broker :1883]
+          ↓ MQTT subscribe
+      Node-RED
+ [Préparer body] → [POST :5001/predict]
+          ↓
+ API Flask IA (port 5001)
+           ↓ {"label","confidence","node_id","ip"}
+ [Logique décision] → [Switch ALLOW/REJECT/QUARANTINE/WATCHLIST]
+         ↙                    ↘
+POST :5000/api/alert      POST ThingSpeak
+         ↓                         ↓
+ Flask Dashboard       Historique Cloud
+     SQLite                ThingSpeak
+```
+
+---
+
+##  Les 5 nœuds simulés
+
+| Nœud | IP | Type | Profil réseau | Fréquence | Taille |
+|------|----|------|---------------|-----------|--------|
+| node_1 | 192.168.1.10 | PLC Réacteur | CBR stable | ~1 msg/sec | ~64B |
+| node_2 | 192.168.1.11 | PLC Pompe | CBR stable | ~1 msg/sec | ~64B |
+| node_3 | 192.168.1.12 | Capteur Pression | VBR irrégulier | 0.05–0.70 msg/sec | ~80B |
+| node_4 | 192.168.1.13 | Capteur Température | VBR irrégulier | 0.05–0.70 msg/sec | ~80B |
+| node_5 | 192.168.1.14 | Gateway SCADA | Bulk lourd | ~0.1 msg/sec | ~2048B |
+
+---
+
+##  Les 5 attaques simulées
+
+| Mode | Nœuds ciblés | Signature principale | Décision |
+|------|-------------|---------------------|---------|
+| `dos` | node_1, node_2 | freq 50–860 msg/sec | 🔴 REJECT |
+| `injection_frozen` | node_3 | payload_entropy ≈ 0.0 | 🟠 QUARANTINE |
+| `injection_aberrant` | node_3, node_4 | payload_size 700–1600B | 🟠 QUARANTINE |
+| `probe` | tous | IP inconnue, nb_connexions 2–10 | 🟡 WATCHLIST |
+| `physical` | node_3, node_4 | freq ≈ 0, nb_connexions 0–2 | 🔴 REJECT |
+
+---
+
+##  Résultats du modèle IA
+
+**Modèle sélectionné : SVM (kernel RBF)**
+
+> Random Forest = 1.00 → overfitting sur données simulées
+> SVM = 0.989 → résultats réalistes et généralisables
+
+```
+              precision    recall  f1-score
+DoS               1.00      1.00      1.00
+Injection_Aberrant 0.94     0.94      0.94
+Injection_Frozen  1.00      1.00      1.00
+Normal            1.00      1.00      1.00
+Physical          1.00      1.00      1.00
+Probe             0.97      0.97      0.97
+
+accuracy                           0.9891
+macro avg         0.99      0.99    0.9857
+CV 5-fold         0.9938 ± 0.0067
+```
+
+**Features utilisées (5 features comportementales) :**
+```
+freq_msg_per_sec | interval_ms | payload_size_bytes | payload_entropy | nb_connexions
+```
 ---
 
 ## Features du Dashboard
@@ -15,120 +99,142 @@ Application web interactive pour la surveillance en temps réel des anomalies r�
 - **Base de données** : Stockage persistant des alertes (`ids_alerts.db`)
 
 ---
-
-## Dataset d'entraînement
-
-| Propriété | Valeur |
-|-----------|--------|
-| Fichier | `data/dataset_real.csv` |
-| Nombre de samples | 905 |
-| Nombre de classes | 6 |
-| Source | Trafic MQTT simulé par M1 |
-
-### Distribution des classes
-
-| Classe | Samples | % |
-|--------|---------|---|
-| Normal | 427 | 47.2% |
-| Probe | 150 | 16.6% |
-| Injection_Aberrant | 91 | 10.1% |
-| Physical | 90 | 9.9% |
-| DoS | 85 | 9.4% |
-| Injection_Frozen | 62 | 6.9% |
-
----
-
-## Modèle choisi
-
-**Random Forest Classifier** (scikit-learn)
-
-Deux modèles ont été comparés : Random Forest et SVM (kernel RBF). Le Random Forest a été retenu comme modèle final.
-
-### Techniques de prétraitement
-
-- **Feature engineering** : `node_id` converti en entier (`node_num`), `ip` réduit au dernier octet (`ip_last_octet`)
-- **Split stratifié** : Train 70% / Validation 15% / Test 15% — stratification garantit la représentation de chaque classe dans les 3 splits
-- **Normalisation** : `StandardScaler` fitté uniquement sur le train, appliqué sur val et test
-- **SMOTE** : rééquilibrage des classes appliqué sur le train uniquement (avant SMOTE : 633 samples → après : 1794 samples)
-- **Cross-validation** : 5-fold stratifié sur train+val
-
-### Features utilisées (7)
+##  Structure du projet
 
 ```
-freq_msg_per_sec, interval_ms, payload_size_bytes,
-payload_entropy, nb_connexions, node_num, ip_last_octet
-```
-
----
-
-## Fichiers produits
-
-| Fichier | Rôle | Destinataire |
-|---------|------|-------------|
-| `train_model.py` | Entraînement, comparaison RF vs SVM, sauvegarde | M4 — rapport |
-| `models/ids_model.pkl` | Modèle Random Forest entraîné | `api_model.py` |
-| `models/scaler.pkl` | StandardScaler (fit sur train) | `api_model.py` |
-| `models/label_encoder.pkl` | Encodeur des 6 classes | `api_model.py` |
-| `models/evaluation_dashboard.png` | Figures de comparaison RF vs SVM | M4 — rapport |
-| `models/class_report.png` | Précision/Rappel/F1 par classe | M4 — rapport |
-| `api/api_model.py` | API Flask port 5001 | M3 — Node-RED |
-
----
-
-## Structure des dossiers
-
-```
-IDS-IoT/
+ids-iot/
+├── scripts/
+│   ├── traffic_simulator.py    ← Trafic normal 
+│   ├── attack_injector.py      ← Attaques 
+│   ├── record_dataset.py       ← Enregistrement dataset
+│   └── check_dataset.py        ← Vérification dataset
+├── api/
+│   └── api_model.py            ← API Flask IA port 5001
 ├── data/
-│   └── dataset_real.csv        ← données MQTT simulées par M1
+│   └── dataset_real.csv        ← Dataset enregistré
 ├── models/
-│   ├── ids_model.pkl
-│   ├── scaler.pkl
-│   ├── label_encoder.pkl
+│   ├── ids_model.pkl           ← Modèle SVM entraîné
+│   ├── scaler.pkl              ← StandardScaler
+│   ├── label_encoder.pkl       ← LabelEncoder
 │   ├── evaluation_dashboard.png
 │   └── class_report.png
-├── api/
-│   └── api_model.py            ← API Flask :5001
-└── train_model.py
+├── templates/                 ← Dashboard Templates
+├── app.py
+├── node-red/
+│   └── flows.json              ← Flow Node-RED exporté 
+├── train_model.py              ← Entraînement RF vs SVM 
+├── config/
+│   └── mosquitto.conf          ← Configuration broker
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## Lancement
-
-### 1. Entraîner le modèle
+##  Prérequis
 
 ```bash
-cd IDS-IoT
-python train_model.py
+# Python 3.9+
+pip install paho-mqtt pandas scikit-learn imbalanced-learn joblib numpy \
+            matplotlib seaborn flask flask-cors requests
+
+# Node.js + Node-RED
+npm install -g --unsafe-perm node-red
+
+# Palettes Node-RED
+node-red → Manage Palette → Install :
+  node-red-dashboard
+  node-red-contrib-ui-led
+
+# Mosquitto
+# Windows : mosquitto.org/download → installer
 ```
 
-Les fichiers pkl sont sauvegardés automatiquement dans `models/`.
+---
 
-### 2. Lancer l'API
+##  Lancement complet
+
+### Étape 1 — Démarrer Mosquitto
 
 ```bash
-cd IDS-IoT/api
+net start mosquitto
+```
+
+### Étape 2 — Lancer l'API IA 
+
+```bash
+cd ids-iot/api
 python api_model.py
+# → Running on http://localhost:5001
 ```
 
-L'API tourne sur `http://0.0.0.0:5001` (accessible en local et sur le réseau).
+### Étape 3 — Lancer Node-RED 
+
+```bash
+node-red
+# → Ouvrir http://localhost:1880
+# → Importer node-red/flows.json
+# → Deploy
+```
+
+### Étape 4 — Lancer le simulateur de trafic 
+
+```bash
+python scripts/traffic_simulator.py
+```
+
+### Étape 5 — Lancer le dashboard Flask 
+
+```bash
+python app.py
+# → Ouvrir http://localhost:5000
+```
+
+### Étape 6 — Injecter une attaque pour tester
+
+```bash
+python scripts/attack_injector.py --mode dos --duration 30
+python scripts/attack_injector.py --mode injection_frozen --duration 30
+python scripts/attack_injector.py --mode injection_aberrant --duration 30
+python scripts/attack_injector.py --mode probe --duration 30
+python scripts/attack_injector.py --mode physical --duration 30
+```
 
 ---
 
-## Endpoints de l'API
+##  Topics MQTT
 
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| `POST` | `/predict` | Reçoit les features d'un nœud, retourne label + confiance |
-| `GET` | `/health` | Statut du service et modèle chargé |
-| `GET` | `/classes` | Liste des classes et actions associées |
+| Topic | Description |
+|-------|-------------|
+| `iiot/node_1/data` | Données PLC Réacteur |
+| `iiot/node_2/data` | Données PLC Pompe |
+| `iiot/node_3/data` | Données Capteur Pression |
+| `iiot/node_4/data` | Données Capteur Température |
+| `iiot/node_5/data` | Données Gateway SCADA |
+| `iiot/ids/alertes` | Alertes IDS publiées par Node-RED |
 
 ---
 
-## Contrat 2 — Format de réponse de `/predict`
+##  Contrats JSON
 
-L'API reçoit le **Contrat 1** (JSON de M3/Node-RED) et retourne le **Contrat 2** :
+### Contrat 1 
+
+```json
+{
+  "node_id":            "node_1",
+  "ip":                 "192.168.1.10",
+  "freq_msg_per_sec":   1.02,
+  "interval_ms":        998,
+  "payload_size_bytes": 64,
+  "payload_entropy":    0.52,
+  "nb_connexions":      1,
+  "ts":                 1717000001,
+  "label":              "Normal",
+  "attack_type":        "Normal"
+}
+```
+
+### Contrat 2 
 
 ```json
 {
@@ -139,84 +245,137 @@ L'API reçoit le **Contrat 1** (JSON de M3/Node-RED) et retourne le **Contrat 2*
 }
 ```
 
-> ⚠️ Pas de `timestamp` dans la réponse — il est généré par M3 dans le Nœud Fonction 2.
-
----
-
-## Tester l'API avec Postman
-
-> Utiliser **Postman Desktop** (pas la version web — elle ne peut pas accéder à localhost).
-
-### Test `/predict`
-
-1. Méthode : **POST**
-2. URL : `http://127.0.0.1:5001/predict`
-3. Onglet **Body** → **raw** → **JSON**
-4. Corps :
-
+### Contrat 3 
 ```json
 {
-  "node_id":            "node_1",
-  "ip":                 "192.168.1.10",
-  "freq_msg_per_sec":   1.02,
-  "interval_ms":        998,
-  "payload_size_bytes": 64,
-  "payload_entropy":    0.52,
-  "nb_connexions":      1
-}
-```
-
-5. Cliquer **Send** → réponse `200 OK` :
-
-```json
-{
-  "label":      "Normal",
-  "confidence": 0.995,
+  "label":      "DoS",
+  "action":     "REJECT",
   "node_id":    "node_1",
-  "ip":         "192.168.1.10"
+  "ip":         "192.168.1.10",
+  "confidence": 0.94,
+  "severity":   "CRITICAL",
+  "timestamp":  "2026-05-30T14:23:01.123Z"
 }
-```
-
-### Test `/health`
-
-Méthode **GET** → `http://127.0.0.1:5001/health`
-
-```json
-{
-  "status":  "ok",
-  "model":   "RandomForestClassifier",
-  "classes": ["DoS","Injection_Aberrant","Injection_Frozen","Normal","Physical","Probe"]
-}
-```
-
-### Test depuis PowerShell (sans Postman)
-
-```powershell
-Invoke-WebRequest -Uri "http://127.0.0.1:5001/predict" `
-  -Method POST `
-  -ContentType "application/json" `
-  -Body '{"node_id":"node_1","ip":"192.168.1.10","freq_msg_per_sec":1.02,"interval_ms":998,"payload_size_bytes":64,"payload_entropy":0.52,"nb_connexions":1}'
 ```
 
 ---
 
-## Prérequis
+##  ThingSpeak — Mapping des fields
+
+| Field | Contenu | Valeurs |
+|-------|---------|---------|
+| `field1` | Node ID | 1–5 |
+| `field2` | Attack code | 0=Normal, 1=DoS, 2=Injection, 3=Probe, 5=Physical |
+| `field3` | Confidence % | 0–100 |
+
+---
+
+##  API Endpoints
+
+### API IA — port 5001
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/predict` | POST | Prédiction : reçoit Contrat 1, retourne Contrat 2 |
+| `/health` | GET | Statut du service + classes disponibles |
+| `/classes` | GET | Labels + actions/sévérités |
+
+### Dashboard Flask — port 5000
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/api/alert` | POST | Reçoit alertes depuis Node-RED |
+| `/api/recent` | GET | 50 dernières alertes |
+| `/api/stats` | GET | Statistiques globales |
+| `/api/nodes/status` | GET | Statut actuel de chaque nœud |
+| `/api/timeline` | GET | Timeline pour graphes |
+| `/api/thingspeak` | GET | Historique depuis ThingSpeak |
+
+---
+
+##  Générer un nouveau dataset
 
 ```bash
-pip install flask flask-cors scikit-learn imbalanced-learn pandas numpy matplotlib seaborn
-```
+# Terminal 1 — trafic normal (laisser tourner)
+python scripts/traffic_simulator.py
 
-Python 3.10+ recommandé.
+# Terminal 2 — enregistrer le trafic
+python scripts/record_dataset.py
+
+# Terminal 3 — injecter les attaques une par une
+python scripts/attack_injector.py --mode dos               --duration 90
+python scripts/attack_injector.py --mode injection_frozen  --duration 90
+python scripts/attack_injector.py --mode injection_aberrant --duration 90
+python scripts/attack_injector.py --mode probe             --duration 90
+python scripts/attack_injector.py --mode physical          --duration 90
+
+# Arrêter Terminal 2 → dataset_real.csv généré
+# Vérifier le dataset
+python scripts/check_dataset.py
+
+# Réentraîner le modèle
+python train_model.py
+```
 
 ---
 
-## Intégration avec M3 (Node-RED)
+##  Test end-to-end
 
-M3 envoie un `POST` à `http://<IP_M2>:5001/predict` avec les features du message MQTT reçu.
-L'IP réseau de la machine M2 est visible au démarrage de l'API dans les logs :
+```bash
+# Terminal 1 — écouter tout le trafic MQTT
+mosquitto_sub -h localhost -t "iiot/#" -v
 
+# Terminal 2 — trafic normal
+python scripts/traffic_simulator.py
+
+# Terminal 3 — attaque DoS 30 secondes
+python scripts/attack_injector.py --mode dos --duration 30
 ```
-* Running on http://192.168.1.105:5001
+
+**Résultat attendu dans Node-RED Debug :**
+```
+🚨 DoS DÉTECTÉ sur node_1 — 192.168.1.10
+action   : REJECT
+severity : CRITICAL
+confidence : 0.94
 ```
 
-**Ce contrat ne change pas sans accord de tout le groupe.**
+---
+
+## 📖 Références
+
+- **Dataset SWaT** : iTrust, Singapore University of Technology and Design (SUTD)
+  https://itrust.sutd.edu.sg/testbeds/secure-water-treatment-swat/
+
+- **Mirai Botnet** : Krebs, B. (2016). *Source Code for IoT Botnet 'Mirai' Released*
+
+- **ICS Security** : Stouffer, K. et al. (2015). *Guide to Industrial Control Systems
+  Security*. NIST Special Publication 800-82.
+
+- **MQTT Protocol** : OASIS Standard (2019). *MQTT Version 5.0*
+
+---
+
+##  Validation du système
+
+| Test | Résultat |
+|------|---------|
+| Mosquitto installé et actif sur port 1883 | ✅ |
+| traffic_simulator.py publie sur iiot/node_X/data | ✅ |
+| Contrat 1 respecté | ✅ |
+| API IA :5001 répond en < 100ms | ✅ |
+| Node-RED détecte les 5 types d'attaques | ✅ |
+| Dashboard Node-RED LEDs fonctionnelles | ✅ |
+| ThingSpeak reçoit les alertes | ✅ |
+| Flask reçoit les alertes de Node-RED | ✅ |
+| SVM Accuracy = 98.9% | ✅ |
+| CV 5-fold = 99.4% ± 0.7% | ✅ |
+
+---
+
+*IDS-IoT SWaT — FST Tanger — 2025/2026*
+
+
+
+
+
